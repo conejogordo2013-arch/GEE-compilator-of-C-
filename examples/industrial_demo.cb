@@ -1,0 +1,28 @@
+import system;
+extern int32 str_eq(string, string);
+extern int32 str_starts_with(string, string);
+extern int32 str_len(string);
+
+struct VecI32 { int64 data; int32 count; int32 capacity; };
+extern void vec_i32_init(struct VecI32*);
+extern void vec_i32_push(struct VecI32*, int32);
+extern int32 vec_i32_get(struct VecI32*, int32);
+extern void vec_i32_free(struct VecI32*);
+
+int32 main() {
+    struct VecI32 v;
+    vec_i32_init(&v);
+    vec_i32_push(&v, 10);
+    vec_i32_push(&v, 20);
+
+    int32 ok = 1;
+    if (!str_eq("gee", "gee")) ok = 0;
+    if (!str_starts_with("industrial", "ind")) ok = 0;
+    if (str_len("abc") != 3) ok = 0;
+    if (vec_i32_get(&v, 1) != 20) ok = 0;
+
+    vec_i32_free(&v);
+    if (ok) { system_exit(0); }
+    system_exit(1);
+    return 0;
+}

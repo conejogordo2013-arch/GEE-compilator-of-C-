@@ -1,0 +1,18 @@
+import system;
+extern int32 min_i32(int32, int32);
+extern int32 max_i32(int32, int32);
+extern int32 clamp_i32(int32, int32, int32);
+extern int32 abs_i32(int32);
+extern int32 is_pow2_i32(int32);
+
+int32 main() {
+    int32 ok = 1;
+    if (min_i32(7, 3) != 3) ok = 0;
+    if (max_i32(7, 3) != 7) ok = 0;
+    if (clamp_i32(20, 0, 10) != 10) ok = 0;
+    if (abs_i32(-9) != 9) ok = 0;
+    if (!is_pow2_i32(16)) ok = 0;
+    if (ok) { system_exit(0); }
+    system_exit(1);
+    return 0;
+}

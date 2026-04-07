@@ -1,0 +1,35 @@
+// Extra utility library for C! programs
+
+int32 min_i32(int32 a, int32 b) {
+    if (a < b) return a;
+    return b;
+}
+
+int32 max_i32(int32 a, int32 b) {
+    if (a > b) return a;
+    return b;
+}
+
+int32 clamp_i32(int32 x, int32 lo, int32 hi) {
+    if (x < lo) return lo;
+    if (x > hi) return hi;
+    return x;
+}
+
+int32 abs_i32(int32 x) {
+    if (x < 0) return -x;
+    return x;
+}
+
+int32 is_pow2_i32(int32 x) {
+    if (x <= 0) return 0;
+    if ((x & (x - 1)) == 0) return 1;
+    return 0;
+}
+
+int32 align_up_i32(int32 x, int32 align) {
+    if (align <= 0) return x;
+    int32 r = x % align;
+    if (r == 0) return x;
+    return x + (align - r);
+}
