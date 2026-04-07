@@ -67,6 +67,17 @@ arm-stdlib:
 		echo "aarch64-linux-gnu-gcc not found; skipping ARM stdlib object build."; \
 	fi
 
+# Build ARM64 stdlib objects (for cross-linking workflows)
+arm-stdlib:
+	@if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then \
+		aarch64-linux-gnu-gcc -c -o stdlib/io_arm64.o stdlib/io_arm64.s && \
+		aarch64-linux-gnu-gcc -c -o stdlib/memory_arm64.o stdlib/memory_arm64.s && \
+		aarch64-linux-gnu-gcc -c -o stdlib/net_arm64.o stdlib/net_arm64.s && \
+		aarch64-linux-gnu-gcc -c -o stdlib/system_arm64.o stdlib/system_arm64.s ; \
+	else \
+		echo "aarch64-linux-gnu-gcc not found; skipping ARM stdlib object build."; \
+	fi
+
 $(SELFHOST_DIR)/%.s: $(SELFHOST_DIR)/%.cb $(GEE)
 	./$(GEE) $< $@
 
