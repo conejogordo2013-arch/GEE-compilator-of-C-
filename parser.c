@@ -355,6 +355,21 @@ static AstNode *parse_add(Parser *p) {
             continue;
         }
         n->type = unify_numeric(lhs->type, rhs->type);
+        if (n->type == TYPE_UNKNOWN) {
+            bool lhs_ptr = (lhs->type == TYPE_PTR);
+            bool rhs_ptr = (rhs->type == TYPE_PTR);
+            bool lhs_num = numeric(lhs->type);
+            bool rhs_num = numeric(rhs->type);
+            if (op.length == 1 && op.lexeme[0] == '+') {
+                if ((lhs_ptr && rhs_num) || (rhs_ptr && lhs_num)) {
+                    n->type = TYPE_PTR;
+                }
+            } else if (op.length == 1 && op.lexeme[0] == '-') {
+                if (lhs_ptr && rhs_num) {
+                    n->type = TYPE_PTR;
+                }
+            }
+        }
         if (n->type == TYPE_UNKNOWN) parse_error(p, op, "invalid types for additive operator");
         lhs = n;
     }
