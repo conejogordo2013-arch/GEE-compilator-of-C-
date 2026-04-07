@@ -28,3 +28,10 @@ Cuando GEE/C! pueda:
 2. Ejecutar una batería amplia de proyectos reales sin parches.
 3. Mantener rendimiento y confiabilidad comparables en x86-64 y ARM64.
 4. Ofrecer tooling equivalente (o claramente superior) para desarrollo diario.
+
+
+## Estado del reto
+
+- En features del lenguaje base, el proyecto avanzó muchísimo y ya cubre varios casos típicos de C/C++.
+- Pero **no** está en estado de reemplazo total sin peros (ecosistema, tooling profundo, self-host completo, adopción amplia).
+- Para uso personal y proyectos controlados: **sí puede reemplazar** en muchos escenarios.

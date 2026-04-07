@@ -111,4 +111,7 @@ abi-interop:
 
 all-tests: quality-gate abi-interop bootstrap-no-cc-smoke
 
-.PHONY: all stage0 original advanced bootstrap bootstrap-smoke bootstrap-no-cc bootstrap-no-cc-smoke no-cc-demo run-example no-cc-proof arm-stdlib selfhost-audit test-language-runtime compat-matrix quality-gate abi-interop all-tests clean install uninstall install-menu
+dev-test:
+	bash scripts/gee-dev-test.sh
+
+.PHONY: all stage0 original advanced bootstrap bootstrap-smoke bootstrap-no-cc bootstrap-no-cc-smoke no-cc-demo run-example no-cc-proof arm-stdlib selfhost-audit test-language-runtime compat-matrix quality-gate abi-interop all-tests dev-test clean install uninstall install-menu

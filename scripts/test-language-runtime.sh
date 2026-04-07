@@ -5,13 +5,24 @@ GEE_BIN=${GEE_BIN:-./gee}
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEST_DIR="$ROOT_DIR/tests/language_runtime"
 OUT_DIR="$(mktemp -d)"
+EXTRA_TEST_LIBS=()
+if [[ -f "$ROOT_DIR/stdlib/extras.cb" ]]; then
+  extras_asm="$OUT_DIR/extras_lib.s"
+  "$GEE_BIN" "$ROOT_DIR/stdlib/extras.cb" "$extras_asm" >/dev/null
+  EXTRA_TEST_LIBS+=("$extras_asm")
+fi
+if [[ -f "$ROOT_DIR/stdlib/strings.cb" ]]; then
+  strings_asm="$OUT_DIR/strings_lib.s"
+  "$GEE_BIN" "$ROOT_DIR/stdlib/strings.cb" "$strings_asm" >/dev/null
+  EXTRA_TEST_LIBS+=("$strings_asm")
+fi
 trap 'rm -rf "$OUT_DIR"' EXIT
 
 fail=0
 for src in "$TEST_DIR"/*.cb; do
   name="$(basename "$src" .cb)"
   bin="$OUT_DIR/$name"
-  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" >/dev/null; then
+  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" "${EXTRA_TEST_LIBS[@]}" >/dev/null; then
     echo "[FAIL] compile: $name"
     fail=1
     continue

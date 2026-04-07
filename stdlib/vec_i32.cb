@@ -1,0 +1,56 @@
+// stdlib/vec_i32.cb - vector dinámico de int32
+
+import memory;
+extern int64 alloc(int64);
+extern void free(int64);
+
+struct VecI32 {
+    int64 data;
+    int32 count;
+    int32 capacity;
+};
+
+void vec_i32_init(VecI32* v) {
+    v->data = 0;
+    v->count = 0;
+    v->capacity = 0;
+}
+
+void vec_i32_free(VecI32* v) {
+    if (v->data != 0) free(v->data);
+    v->data = 0;
+    v->count = 0;
+    v->capacity = 0;
+}
+
+void vec_i32_reserve(VecI32* v, int32 new_cap) {
+    if (new_cap <= v->capacity) return;
+    int64 new_data = alloc(new_cap * 8);
+    int64* dst = new_data;
+    int64* src = v->data;
+    int32 i = 0;
+    while (i < v->count) {
+        *(dst + i) = *(src + i);
+        i = i + 1;
+    }
+    if (v->data != 0) free(v->data);
+    v->data = new_data;
+    v->capacity = new_cap;
+}
+
+void vec_i32_push(VecI32* v, int32 value) {
+    if (v->count == v->capacity) {
+        int32 nc = 8;
+        if (v->capacity != 0) nc = v->capacity * 2;
+        vec_i32_reserve(v, nc);
+    }
+    int64* p = v->data;
+    *(p + v->count) = value;
+    v->count = v->count + 1;
+}
+
+int32 vec_i32_get(VecI32* v, int32 idx) {
+    if (idx < 0 || idx >= v->count) return 0;
+    int64* p = v->data;
+    return *(p + idx);
+}
