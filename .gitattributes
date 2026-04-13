@@ -1,8 +1,8 @@
 # =========================
-# C! (lenguaje principal)
+# C!
 # =========================
 *.cb linguist-language=C!
-*.cb linguist-detectable=true
+*.cb linguist-detectable=false
 
 # =========================
 # Headers C!
@@ -14,4 +14,9 @@
 # Ensamblador cbasm
 # =========================
 *.s linguist-language=cbasm
-*.s linguist-detectable=true
+*.s linguist-detectable=false
+
+# =========================
+# Evitar inferencia global
+# =========================
+* linguist-vendored=false
