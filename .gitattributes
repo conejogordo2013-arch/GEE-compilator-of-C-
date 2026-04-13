@@ -1,4 +1,0 @@
-*.cb linguist-language=C!
-*.h linguist-language=C!
-*.h linguist-detectable=false
-*.s linguist-language=cbasm
