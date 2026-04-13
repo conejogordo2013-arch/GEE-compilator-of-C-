@@ -1,0 +1,3 @@
+*.cb linguist-language=C!
+*.cb linguist-vendored=false
+*.cb linguist-detectable=true
