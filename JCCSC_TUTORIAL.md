@@ -58,6 +58,28 @@ Cross emit ARM64 desde x86-64:
 GEE_BIN=./gee bash scripts/gee-asm-link.sh arm-64 examples/no_cc.cb no_cc_arm64
 ```
 
+### 2.4 ¿Y si no está disponible el modo `no-cc`?
+
+Si en tu entorno no tienes `as/ld` compatibles o quieres flujo clásico con driver C, usa **clang** o **gcc** como fallback:
+
+#### Opción A: clang
+
+```bash
+./gee examples/no_cc.cb /tmp/program.s
+clang -no-pie -o program_clang /tmp/program.s stdlib/io.s stdlib/memory.s stdlib/net.s stdlib/system.s
+./program_clang
+```
+
+#### Opción B: gcc
+
+```bash
+./gee examples/no_cc.cb /tmp/program.s
+gcc -no-pie -o program_gcc /tmp/program.s stdlib/io.s stdlib/memory.s stdlib/net.s stdlib/system.s
+./program_gcc
+```
+
+> Recomendación: preferir `no-cc` para validar independencia de toolchain C, pero clang/gcc son compatibles para desarrollo rápido.
+
 ---
 
 ## 3) Primer programa: Hola Mundo (básico)
@@ -70,6 +92,14 @@ También manual:
 
 ```bash
 ./gee examples/hola_mundo.cb /tmp/hola.s
+```
+
+Con fallback clang/gcc:
+
+```bash
+clang -no-pie -o hola /tmp/hola.s stdlib/io.s stdlib/memory.s stdlib/net.s stdlib/system.s
+# o gcc -no-pie -o hola /tmp/hola.s ...
+./hola
 ```
 
 ---
@@ -139,6 +169,13 @@ jccsc_sim_continue(&sim, 512);
 jccsc_sim_dump_state(&sim, out, out_cap);
 ```
 
+## 6.4 Cambio de modo recomendado (práctico)
+
+1. **editor/LSP activo**: autocompletado, hover, diagnósticos incrementales.
+2. **refactor**: aplicar `codeAction` / `rename` y validar semántica.
+3. **simulación runtime**: `debugStart` + `debugStep` para entender ejecución.
+4. **compilación final**: pipeline completo a C!/ASM/binario.
+
 ---
 
 ## 7) Usar JCCSC vía LSP (editor)
@@ -158,6 +195,14 @@ Métodos soportados:
   - `jccsc/debugContinue`
   - `jccsc/debugVariables`
   - `jccsc/debugStack`
+
+### Ejemplo mínimo JSON-RPC (rename + debug)
+
+```json
+{"jsonrpc":"2.0","method":"textDocument/rename","params":{"oldName":"x","newName":"total"}}
+{"jsonrpc":"2.0","method":"jccsc/debugStart","params":{}}
+{"jsonrpc":"2.0","method":"jccsc/debugStep","params":{}}
+```
 
 ---
 
@@ -180,6 +225,15 @@ bash tests/jccsc/test_jccsc_lsp.sh
 bash scripts/test-complex-cases.sh
 bash scripts/test-deep-validation.sh
 bash scripts/test-language-runtime.sh
+```
+
+Fallback clang/gcc (si no-cc no está disponible):
+
+```bash
+./gee examples/no_cc.cb /tmp/no_cc.s
+clang -no-pie -o no_cc /tmp/no_cc.s stdlib/io.s stdlib/memory.s stdlib/net.s stdlib/system.s
+# o gcc -no-pie -o no_cc /tmp/no_cc.s ...
+./no_cc
 ```
 
 ---
