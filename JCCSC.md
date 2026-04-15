@@ -18,6 +18,7 @@ Estabilidad + rendimiento: compilación incremental, caché y pipeline determini
 - `var`, genéricos simples (`< >`), arrays multidimensionales (`[,]`)
 - lambda (`=>`), ternario (`?:`), chaining (`.`)
 - control flow + excepciones simplificadas
+- marcadores modernos: `dynamic`, `record`, `delegate`, `Func/Action`, `async/await`, `where/select/orderby/group`
 
 ### 2) Parser/AST extendido
 `jccsc_parser_build_ast`
@@ -60,6 +61,8 @@ Estabilidad + rendimiento: compilación incremental, caché y pipeline determini
   - `var -> int64` (inferencia simplificada)
 - `try/catch/throw` degradado a estructuras equivalentes simples
 - chaining `a.b.c` degradado a `a_b_c`
+- `dynamic` degradado a `int64`, `record/interface` degradado a `struct`
+- marcadores LINQ/Func/Action/delegate degradados a comentarios semánticos (`/*linq*/`, `/*fn*/`, `/*delegate*/`)
 - post-procesado determinista con `jccsc_backend_optimize` (espacios/saltos normalizados)
 
 ### 6) Compilación incremental y cache
@@ -69,6 +72,39 @@ Estabilidad + rendimiento: compilación incremental, caché y pipeline determini
 - entrada incremental: `jccsc_compile_incremental`
   - cache hit: salta Lexer/Parser/Semantic/IR y reutiliza backend directo sobre la misma fuente
   - cache miss: ejecuta pipeline completo y guarda fingerprints (`source_hash`, `ast_hash`, `ir_hash`, `dep_hash`)
+
+### 7) Diagnostic Engine (estilo compilador moderno)
+- estructura central: `JccscDiagnosticEngine`
+- severidades:
+  - `1=Error` (bloqueante)
+  - `2=Warning` (no bloqueante)
+  - `3=Info`
+  - `4=Hint`
+- APIs:
+  - `jccsc_diag_init`
+  - `jccsc_diag_emit`
+  - `jccsc_diag_summary`
+  - `jccsc_compile_with_diagnostics`
+- códigos por fase:
+  - `1000–1999` Lexer
+  - `2000–2999` Parser
+  - `3000–3999` Semantic
+  - `4000–4999` IR
+  - `5000–5999` Backend
+
+### 8) Compiler Debugger + AST/IR Visualizer
+- sesión de debug: `JccscDebugSession`
+- APIs:
+  - `jccsc_debug_enable`
+  - `jccsc_debug_set_breakpoint`
+  - `jccsc_compile_debug`
+  - `jccsc_debug_dump_ast_text`
+  - `jccsc_debug_dump_ast_json`
+  - `jccsc_debug_dump_ir`
+- soporte:
+  - trace por fases (Lexer, Parser, Semantic, IR Gen, IR Opt, Backend)
+  - breakpoints por fase
+  - pausa de compilación para inspección (`paused`)
 
 ## Restricciones explícitas
 
@@ -88,3 +124,10 @@ Estabilidad + rendimiento: compilación incremental, caché y pipeline determini
 
 - Evita recompilación completa cuando el hash de fuente no cambia.
 - IR y backend se normalizan para salida determinista y más predecible.
+
+## Cobertura moderna (subset avanzado, sin runtime .NET)
+
+- Tipos: `var`, `dynamic` (simulado), nullable (`T?` degradado), tuples/records (degradados estructuralmente).
+- Funcional: lambdas y chaining con lowering progresivo.
+- LINQ: `where/select/orderby/group` como nodos/marcadores traducibles.
+- Async: `async/await` transformados de forma estructural sin runtime externo.
