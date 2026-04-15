@@ -1,0 +1,92 @@
+#include "../../stdlib/memory.h"
+
+extern int32 puts(string);
+
+#include "../../jccsc/jccsc.cb"
+
+int32 main() {
+    int64 uri_mem = alloc(512);
+    int64 src_mem = alloc(12288);
+    int64 diag_mem = alloc(8192);
+    int64 out_mem = alloc(16384);
+    if (uri_mem == 0 || src_mem == 0 || diag_mem == 0 || out_mem == 0) return 2;
+
+    struct JccscLspState lsp;
+    jccsc_lsp_state_init(&lsp, uri_mem, 512, src_mem, 12288, diag_mem, 8192);
+
+    byte* out = out_mem;
+    string req_init = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_init, out, 16384);
+    if (jccsc_lsp_find(out, "\"completionProvider\"") < 0) return 3;
+
+    string req_open = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///demo.cs\",\"version\":1,\"text\":\"class Program { int Main() { int total = 1; var sum = total + 3; return sum; } }\"}}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_open, out, 16384);
+    if (lsp.symbol_count <= 0) return 4;
+
+    string req_change = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///demo.cs\",\"version\":2},\"contentChanges\":[{\"text\":\"class Program { int Main() { int total = 1; int local = total + 2; return local; } }\"}]}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_change, out, 16384);
+    if (lsp.document_version < 2) return 5;
+
+    jccsc_lsp_completion(&lsp, 0, 0, out, 16384);
+    if (jccsc_lsp_find(out, "\"items\"") < 0 || lsp.last_completion_count < 10) return 6;
+
+    jccsc_lsp_hover(&lsp, 0, 0, out, 16384);
+    if (jccsc_lsp_find(out, "\"contents\"") < 0) return 7;
+
+    jccsc_lsp_document_symbols(&lsp, out, 16384);
+    if (jccsc_lsp_find(out, "\"name\"") < 0) return 8;
+
+    jccsc_lsp_definition(&lsp, 0, 0, out, 16384);
+    if (jccsc_lsp_find(out, "\"range\"") < 0) return 9;
+
+    jccsc_lsp_references(&lsp, 0, 0, out, 16384);
+    if (jccsc_lsp_find(out, "\"uri\"") < 0) return 10;
+
+    jccsc_lsp_signature_help(&lsp, 0, 0, out, 16384);
+    if (jccsc_lsp_find(out, "\"signatures\"") < 0) return 11;
+
+    string req_save = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didSave\",\"params\":{\"textDocument\":{\"uri\":\"file:///demo.cs\"}}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_save, out, 16384);
+    if (jccsc_lsp_find(out, "saved and indexed") < 0) return 12;
+
+    string req_ca = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/codeAction\",\"params\":{}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_ca, out, 16384);
+    if (jccsc_lsp_find(out, "refactor.rename") < 0) return 13;
+
+    string req_rename = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/rename\",\"params\":{\"oldName\":\"local\",\"newName\":\"acc\"}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_rename, out, 16384);
+    if (jccsc_lsp_find(out, "\"changes\"") < 0) return 14;
+    if (jccsc_lsp_find(lsp.source_cache, "acc") < 0) return 15;
+
+    string req_dbg_start = "{\"jsonrpc\":\"2.0\",\"method\":\"jccsc/debugStart\",\"params\":{}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_dbg_start, out, 16384);
+    if (jccsc_lsp_find(out, "[Execution]") < 0) return 16;
+
+    string req_dbg_step = "{\"jsonrpc\":\"2.0\",\"method\":\"jccsc/debugStep\",\"params\":{}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_dbg_step, out, 16384);
+    if (jccsc_lsp_find(out, "[Variables]") < 0) return 17;
+
+    string req_dbg_stack = "{\"jsonrpc\":\"2.0\",\"method\":\"jccsc/debugStack\",\"params\":{}}";
+    jccsc_lsp_dispatch_jsonrpc(&lsp, req_dbg_stack, out, 16384);
+    if (jccsc_lsp_find(out, "\"stackTop\"") < 0) return 18;
+
+    struct JccscWorkspaceEdit ws;
+    struct JccscTextEdit* wse = &ws.edit;
+    ws.change_count = 0;
+    wse->replacement = 0;
+    wse->replacement_cap = 0;
+    int64 ref_mem = alloc(16384);
+    if (ref_mem == 0) return 19;
+    byte* ref_out = ref_mem;
+    if (!jccsc_refactor_inline_variable(lsp.source_cache, "acc", ref_out, 16384, &ws)) return 20;
+    if (jccsc_lsp_find(ref_out, "return") < 0) return 21;
+    if (wse->replacement != 0) free(wse->replacement);
+    free(ref_mem);
+
+    puts("ok: jccsc lsp core/intellisense/refactor smoke");
+    free(uri_mem);
+    free(src_mem);
+    free(diag_mem);
+    free(out_mem);
+    return 0;
+}
