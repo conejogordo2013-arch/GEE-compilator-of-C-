@@ -131,3 +131,102 @@ Estabilidad + rendimiento: compilación incremental, caché y pipeline determini
 - Funcional: lambdas y chaining con lowering progresivo.
 - LINQ: `where/select/orderby/group` como nodos/marcadores traducibles.
 - Async: `async/await` transformados de forma estructural sin runtime externo.
+
+## LSP (Language Server Protocol) integrado en C!
+
+JCCSC ahora incluye un núcleo LSP (sin Roslyn ni .NET) para modo editor en tiempo real.
+
+### Capacidades LSP implementadas
+
+- Transporte JSON-RPC (mensajes parseados y despachados por método).
+- Eventos base:
+  - `initialize`
+  - `shutdown`
+  - `textDocument/didOpen`
+  - `textDocument/didChange`
+  - `textDocument/didSave`
+- IntelliSense básico:
+  - autocompletado con keywords del subset C#, tipos base y símbolos en scope.
+  - ranking simple por scope local (`sortText` prioriza símbolos cercanos).
+  - `hover` con metadatos de símbolo/tipo.
+  - `definition` y `references`.
+  - `documentSymbol`.
+  - `signatureHelp` con firmas base del pipeline.
+- Diagnósticos en tiempo real:
+  - reutiliza `jccsc_compile_with_diagnostics`.
+  - serializa resultados para `publishDiagnostics`.
+- Cache e incremental:
+  - cache de fuente por documento (`source_cache`).
+  - hash de fuente/AST/IR en `JccscLspState`.
+  - contadores de `incremental_hits` / `incremental_misses`.
+  - evita recompilación completa cuando no cambia el hash.
+
+### APIs LSP nuevas
+
+- Estado y modo:
+  - `jccsc_lsp_state_init`
+  - `jccsc_lsp_set_mode` (`editor`, `compilación`, `debug` por convención numérica)
+- Dispatcher JSON-RPC:
+  - `jccsc_lsp_dispatch_jsonrpc`
+- Funciones editor:
+  - `jccsc_lsp_completion`
+  - `jccsc_lsp_hover`
+  - `jccsc_lsp_document_symbols`
+  - `jccsc_lsp_definition`
+  - `jccsc_lsp_references`
+  - `jccsc_lsp_signature_help`
+  - `jccsc_lsp_publish_diagnostics`
+
+## Refactoring engine + Code Actions (nuevo)
+
+El servidor LSP ahora incorpora una capa de refactorización determinista y validada:
+
+- Rename symbol global: `jccsc_refactor_rename_symbol`
+- Extract method por marcadores de selección:
+  - `jccsc_refactor_extract_method`
+- Inline:
+  - variable: `jccsc_refactor_inline_variable`
+  - función simple: `jccsc_refactor_inline_function`
+- Move symbol entre scopes (con edición aplicada y validación):
+  - `jccsc_refactor_move_symbol`
+- Code patches:
+  - diff incremental `jccsc_refactor_build_workspace_edit`
+  - aplicación de patch `jccsc_refactor_apply_workspace_edit`
+  - serialización LSP de `WorkspaceEdit` `jccsc_lsp_workspace_edit_json`
+- Seguridad semántica post-transformación:
+  - `jccsc_refactor_validate` re-ejecuta Lexer/Parser/Semantic/IR/opt antes de aceptar cambios.
+- LSP integrado:
+  - `textDocument/codeAction` (`jccsc_lsp_code_action`)
+  - `textDocument/rename` (`jccsc_lsp_rename`)
+
+## Runtime Simulator + Debugger (nuevo)
+
+Se añadió un simulador de ejecución (interpretado) para depuración previa a compilación nativa:
+
+- Núcleo runtime:
+  - `jccsc_sim_init`
+  - `jccsc_sim_load_source`
+  - ejecución secuencial por sentencias (subset IR-aware)
+  - límite de pasos (`step_limit`) y límite de heap (`heap_limit`)
+- Control debugger:
+  - `jccsc_sim_step_into`
+  - `jccsc_sim_step_over`
+  - `jccsc_sim_step_out`
+  - `jccsc_sim_continue`
+  - `jccsc_sim_pause`
+  - breakpoints por línea / función
+- Estado inspeccionable:
+  - `jccsc_sim_dump_state`
+  - `jccsc_sim_dump_stack`
+  - `jccsc_sim_dump_heap`
+- Integración LSP:
+  - `jccsc/debugStart`
+  - `jccsc/debugStep`
+  - `jccsc/debugContinue`
+  - `jccsc/debugVariables`
+  - `jccsc/debugStack`
+
+Esto habilita depuración paso a paso del subset C# dentro de JCCSC antes del camino final:
+`C# -> JCCSC -> IR -> C! -> GEE -> nativo`.
+
+> Guía práctica completa de instalación/uso/tests: `JCCSC_TUTORIAL.md`.
