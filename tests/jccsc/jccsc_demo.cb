@@ -1,0 +1,53 @@
+#include "../../stdlib/memory.h"
+
+extern int32 puts(string);
+
+#include "../../jccsc/jccsc.cb"
+
+int32 main() {
+    string src = "global using Core = System.Collections; using IO = System.IO; using Demo.Tools; namespace Company.Product.Module { class Program { class Nested { public static int Seed() { return 7; } } public static int Main() { const int N = 3; var total = 0; int[,] grid = new int[2,2]; int[] arr = new int[N]; int i = 0; do { arr[i] = i + Nested.Seed(); i = i + 1; } while (i < N); for (i = 0; i < N; i = i + 1) { total = total + arr[i]; } switch (total) { case 24: break; default: total = total > 0 ? total : 1; break; } try { return total; } catch { return 1; } } } }";
+
+    int64 mem = alloc(12288);
+    if (mem == 0) return 2;
+
+    byte* out = mem;
+    struct JccscLexResult lex;
+    struct JccscAst ast;
+    struct JccscIr ir;
+    struct JccscCompileCache cache;
+    struct JccscBuildStats stats;
+
+    jccsc_cache_init(&cache);
+    int32 ok = jccsc_compile_incremental(src, out, 12288, &cache, &stats, &lex, &ast, &ir);
+    if (ok == 0) { free(mem); return 3; }
+
+    if (lex.has_using == 0 || lex.has_using_alias == 0 || lex.has_global_using == 0) {
+        free(mem);
+        return 4;
+    }
+
+    if (lex.has_namespace_dotted == 0 || lex.has_nested_class == 0 || lex.has_var == 0 || lex.has_multidim_array == 0) {
+        free(mem);
+        return 5;
+    }
+
+    if (ast.namespace_depth_max < 3 || ast.using_alias_count == 0 || ast.nested_class_count == 0 || ast.var_infer_count == 0) {
+        free(mem);
+        return 6;
+    }
+
+    if (ir.namespace_count == 0 || ir.using_alias_count == 0 || ir.nested_count == 0 || ir.chain_count == 0) {
+        free(mem);
+        return 7;
+    }
+
+    ok = jccsc_compile_incremental(src, out, 12288, &cache, &stats, &lex, &ast, &ir);
+    if (ok == 0 || stats.cache_hit == 0 || stats.backend_ran == 0) {
+        free(mem);
+        return 8;
+    }
+
+    puts(out);
+    free(mem);
+    return 0;
+}

@@ -125,6 +125,9 @@ test-ogl2d:
 test-ogl3d:
 	bash scripts/test-ogl3d.sh
 
+test-jccsc:
+	bash tests/jccsc/test_jccsc.sh
+
 compat-matrix:
 	bash scripts/compat-matrix.sh
 
@@ -142,4 +145,4 @@ dev-test:
 smoke-hola-mundo:
 	bash scripts/smoke-hola-mundo.sh
 
-.PHONY: all stage0 original advanced bootstrap bootstrap-smoke bootstrap-no-cc bootstrap-no-cc-smoke no-cc-demo run-example no-cc-proof arm-stdlib selfhost-audit test-language-runtime test-frontend-robustness test-complex-cases test-stutilsio test-libcbang test-deep-validation test-ogl test-ogl2d test-ogl3d compat-matrix quality-gate abi-interop all-tests test dev-test smoke-hola-mundo clean install uninstall install-menu
+.PHONY: all stage0 original advanced bootstrap bootstrap-smoke bootstrap-no-cc bootstrap-no-cc-smoke no-cc-demo run-example no-cc-proof arm-stdlib selfhost-audit test-language-runtime test-frontend-robustness test-complex-cases test-stutilsio test-libcbang test-deep-validation test-ogl test-ogl2d test-ogl3d test-jccsc compat-matrix quality-gate abi-interop all-tests test dev-test smoke-hola-mundo clean install uninstall install-menu
