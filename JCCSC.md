@@ -228,3 +228,5 @@ Se añadió un simulador de ejecución (interpretado) para depuración previa a 
 
 Esto habilita depuración paso a paso del subset C# dentro de JCCSC antes del camino final:
 `C# -> JCCSC -> IR -> C! -> GEE -> nativo`.
+
+> Guía práctica completa de instalación/uso/tests: `JCCSC_TUTORIAL.md`.
