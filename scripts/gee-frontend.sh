@@ -48,4 +48,31 @@ if [[ ! -x "$CORE_BIN" ]]; then
   exit 2
 fi
 
+if [[ $# -ge 1 ]]; then
+  INPUT="$1"
+  case "$INPUT" in
+    *.cs)
+      TMP_CB="$(mktemp /tmp/jccsc_XXXXXX.cb)"
+      cleanup() {
+        rm -f "$TMP_CB"
+      }
+      trap cleanup EXIT
+
+      JCCSC_BIN="${JCCSC_BIN:-$PREFIX/bin/jccsc-cbang}"
+      if [[ ! -x "$JCCSC_BIN" ]]; then
+        echo "error: missing JCCSC frontend binary at $JCCSC_BIN" >&2
+        echo "hint: build/install a C!-based jccsc-cbang tool and set JCCSC_BIN" >&2
+        exit 2
+      fi
+      "$JCCSC_BIN" "$INPUT" "$TMP_CB"
+
+      shift
+      if [[ $# -ge 1 ]]; then
+        exec env GEE_TARGET="$TARGET" "$CORE_BIN" "$TMP_CB" "$@"
+      fi
+      exec env GEE_TARGET="$TARGET" "$CORE_BIN" "$TMP_CB"
+      ;;
+  esac
+fi
+
 exec env GEE_TARGET="$TARGET" "$CORE_BIN" "$@"

@@ -1,0 +1,1199 @@
+// JCCSC - C# subset compiler frontend implemented in C!
+// Advanced progressive pipeline: Lexer -> Parser/AST -> Semantic -> IR -> Backend(C!)
+
+struct JccscLexResult {
+    int32 token_count;
+    int32 has_using;
+    int32 has_using_alias;
+    int32 has_global_using;
+    int32 has_namespace;
+    int32 has_namespace_dotted;
+    int32 has_class;
+    int32 has_nested_class;
+    int32 has_var;
+    int32 has_generic;
+    int32 has_if;
+    int32 has_else;
+    int32 has_switch;
+    int32 has_case;
+    int32 has_for;
+    int32 has_while;
+    int32 has_do;
+    int32 has_break;
+    int32 has_continue;
+    int32 has_return;
+    int32 has_try;
+    int32 has_catch;
+    int32 has_throw;
+    int32 has_array;
+    int32 has_multidim_array;
+    int32 has_lambda;
+    int32 has_ternary;
+    int32 ok;
+};
+
+struct JccscAst {
+    int32 using_count;
+    int32 using_alias_count;
+    int32 global_using_count;
+    int32 namespace_count;
+    int32 namespace_depth_max;
+    int32 class_count;
+    int32 nested_class_count;
+    int32 field_count;
+    int32 ctor_count;
+    int32 method_count;
+    int32 var_count;
+    int32 var_infer_count;
+    int32 generic_count;
+    int32 if_count;
+    int32 switch_count;
+    int32 case_count;
+    int32 for_count;
+    int32 while_count;
+    int32 do_count;
+    int32 break_count;
+    int32 continue_count;
+    int32 return_count;
+    int32 try_count;
+    int32 catch_count;
+    int32 throw_count;
+    int32 array_count;
+    int32 multidim_array_count;
+    int32 lambda_count;
+    int32 ternary_count;
+    int32 chaining_count;
+    int32 symbol_conflict_count;
+};
+
+struct JccscIr {
+    int32 method_count;
+    int32 field_count;
+    int32 namespace_count;
+    int32 using_alias_count;
+    int32 nested_count;
+    int32 flow_count;
+    int32 exception_count;
+    int32 expression_count;
+    int32 generic_count;
+    int32 var_infer_count;
+    int32 chain_count;
+    int32 modern_feature_count;
+    int32 ok;
+};
+
+struct JccscCompileCache {
+    int32 valid;
+    int32 source_hash;
+    int32 ast_hash;
+    int32 ir_hash;
+    int32 dep_hash;
+};
+
+struct JccscBuildStats {
+    int32 cache_hit;
+    int32 lex_ran;
+    int32 parse_ran;
+    int32 semantic_ran;
+    int32 ir_ran;
+    int32 backend_ran;
+};
+
+struct JccscDiagnosticEngine {
+    int32 error_count;
+    int32 warning_count;
+    int32 info_count;
+    int32 hint_count;
+    int32 diagnostic_count;
+    int32 verbose;
+    int32 report_len;
+    int32 report_cap;
+    byte* report;
+    int32 last_code;
+    int32 last_severity;
+    int32 last_phase;
+    int32 last_line;
+    int32 last_col;
+    int32 last_start;
+    int32 last_end;
+};
+
+struct JccscDebugSession {
+    int32 enabled;
+    int32 trace_mode;      // 0=minimal,1=normal,2=verbose
+    int32 breakpoint_phase; // 1..6 or 0 none
+    int32 breakpoint_line;  // optional
+    int32 breakpoint_symbol;
+    int32 paused;
+    byte* trace;
+    int32 trace_len;
+    int32 trace_cap;
+};
+
+int32 jccsc_is_alpha(int32 ch) { if ((ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122) || ch == 95) return 1; return 0; }
+int32 jccsc_is_digit(int32 ch) { if (ch >= 48 && ch <= 57) return 1; return 0; }
+int32 jccsc_is_alnum(int32 ch) { if (jccsc_is_alpha(ch) || jccsc_is_digit(ch)) return 1; return 0; }
+int32 jccsc_is_space(int32 ch) { if (ch == 32 || ch == 9 || ch == 10 || ch == 13) return 1; return 0; }
+
+int32 jccsc_match_word(string src, int32 at, string w) {
+    byte* ps = src;
+    byte* pw = w;
+    int32 i = 0;
+    while ((*(pw + i) & 255) != 0) {
+        if ((*(ps + at + i) & 255) != (*(pw + i) & 255)) return 0;
+        i = i + 1;
+    }
+    int32 before = 0;
+    int32 after = *(ps + at + i) & 255;
+    if (at > 0) before = *(ps + at - 1) & 255;
+    if (at > 0 && jccsc_is_alnum(before)) return 0;
+    if (jccsc_is_alnum(after)) return 0;
+    return 1;
+}
+
+int32 jccsc_skip_spaces(byte* p, int32 i) {
+    while (jccsc_is_space(*(p + i) & 255)) i = i + 1;
+    return i;
+}
+
+int32 jccsc_is_type_word(string src, int32 i) {
+    if (jccsc_match_word(src, i, "int")) return 1;
+    if (jccsc_match_word(src, i, "float")) return 1;
+    if (jccsc_match_word(src, i, "double")) return 1;
+    if (jccsc_match_word(src, i, "bool")) return 1;
+    if (jccsc_match_word(src, i, "char")) return 1;
+    if (jccsc_match_word(src, i, "string")) return 1;
+    if (jccsc_match_word(src, i, "void")) return 1;
+    if (jccsc_match_word(src, i, "var")) return 1;
+    return 0;
+}
+
+int32 jccsc_type_code_from_word(string src, int32 i) {
+    if (jccsc_match_word(src, i, "bool")) return 1;
+    if (jccsc_match_word(src, i, "char")) return 2;
+    if (jccsc_match_word(src, i, "int")) return 3;
+    if (jccsc_match_word(src, i, "float")) return 4;
+    if (jccsc_match_word(src, i, "double")) return 5;
+    if (jccsc_match_word(src, i, "string")) return 6;
+    if (jccsc_match_word(src, i, "var")) return 7;
+    return 0;
+}
+
+int32 jccsc_is_numeric_type(int32 ty) {
+    if (ty == 2 || ty == 3 || ty == 4 || ty == 5) return 1;
+    return 0;
+}
+
+int32 jccsc_type_compatible(int32 dst, int32 src, int32* implicit_conv, int32* explicit_conv) {
+    if (dst == src) return 1;
+    if (dst == 7) return 1;
+    if (jccsc_is_numeric_type(dst) && jccsc_is_numeric_type(src)) {
+        if (src <= dst) {
+            *implicit_conv = *implicit_conv + 1;
+            return 1;
+        }
+        *explicit_conv = *explicit_conv + 1;
+        return 0;
+    }
+    return 0;
+}
+
+int32 jccsc_type_of_literal(byte* p, int32 i) {
+    i = jccsc_skip_spaces(p, i);
+    int32 ch = *(p + i) & 255;
+    if (ch == 34) return 6;
+    if (ch == 39) return 2;
+    if (jccsc_is_digit(ch)) {
+        while (jccsc_is_digit(*(p + i) & 255)) i = i + 1;
+        if ((*(p + i) & 255) == 46) return 4;
+        return 3;
+    }
+    if (ch == 116 && (*(p + i + 1) & 255) == 114 && (*(p + i + 2) & 255) == 117 && (*(p + i + 3) & 255) == 101) return 1;
+    if (ch == 102 && (*(p + i + 1) & 255) == 97 && (*(p + i + 2) & 255) == 108 && (*(p + i + 3) & 255) == 115 && (*(p + i + 4) & 255) == 101) return 1;
+    return 0;
+}
+
+int32 jccsc_ident_hash(byte* p, int32 i) {
+    int32 h = 17;
+    while (jccsc_is_alnum(*(p + i) & 255)) {
+        h = (h * 131) + (*(p + i) & 255);
+        i = i + 1;
+    }
+    if (h < 0) h = -h;
+    return h;
+}
+
+int32 jccsc_hash_source(string src) {
+    byte* p = src;
+    int32 i = 0;
+    int32 h = 216613;
+    while ((*(p + i) & 255) != 0) {
+        h = h ^ (*(p + i) & 255);
+        h = h * 16777619;
+        i = i + 1;
+    }
+    if (h < 0) h = -h;
+    return h;
+}
+
+int32 jccsc_ast_fingerprint(struct JccscAst* ast) {
+    int32 h = 17;
+    h = h * 31 + ast->using_count;
+    h = h * 31 + ast->using_alias_count;
+    h = h * 31 + ast->namespace_count;
+    h = h * 31 + ast->namespace_depth_max;
+    h = h * 31 + ast->class_count;
+    h = h * 31 + ast->nested_class_count;
+    h = h * 31 + ast->method_count;
+    h = h * 31 + ast->var_count;
+    h = h * 31 + ast->if_count + ast->switch_count + ast->for_count + ast->while_count + ast->do_count;
+    h = h * 31 + ast->symbol_conflict_count;
+    if (h < 0) h = -h;
+    return h;
+}
+
+int32 jccsc_ir_fingerprint(struct JccscIr* ir) {
+    int32 h = 23;
+    h = h * 37 + ir->method_count;
+    h = h * 37 + ir->field_count;
+    h = h * 37 + ir->namespace_count;
+    h = h * 37 + ir->using_alias_count;
+    h = h * 37 + ir->flow_count;
+    h = h * 37 + ir->exception_count;
+    h = h * 37 + ir->expression_count;
+    h = h * 37 + ir->generic_count;
+    h = h * 37 + ir->chain_count;
+    if (h < 0) h = -h;
+    return h;
+}
+
+int32 jccsc_dependency_hash(struct JccscLexResult* lex, struct JccscAst* ast) {
+    int32 h = 29;
+    h = h * 41 + lex->has_using + lex->has_namespace_dotted + lex->has_class;
+    h = h * 41 + ast->using_count + ast->using_alias_count + ast->namespace_count + ast->namespace_depth_max;
+    if (h < 0) h = -h;
+    return h;
+}
+
+int32 jccsc_count_word(string src, string w) {
+    byte* p = src;
+    int32 i = 0;
+    int32 c = 0;
+    while ((*(p + i) & 255) != 0) {
+        if (jccsc_match_word(src, i, w)) c = c + 1;
+        i = i + 1;
+    }
+    return c;
+}
+
+int32 jccsc_modern_feature_score(string src) {
+    int32 s = 0;
+    s = s + jccsc_count_word(src, "dynamic");
+    s = s + jccsc_count_word(src, "record");
+    s = s + jccsc_count_word(src, "delegate");
+    s = s + jccsc_count_word(src, "Func");
+    s = s + jccsc_count_word(src, "Action");
+    s = s + jccsc_count_word(src, "where");
+    s = s + jccsc_count_word(src, "select");
+    s = s + jccsc_count_word(src, "orderby");
+    s = s + jccsc_count_word(src, "group");
+    s = s + jccsc_count_word(src, "interface");
+    s = s + jccsc_count_word(src, "virtual");
+    s = s + jccsc_count_word(src, "override");
+    s = s + jccsc_count_word(src, "abstract");
+    s = s + jccsc_count_word(src, "async");
+    s = s + jccsc_count_word(src, "await");
+    s = s + jccsc_count_word(src, "finally");
+    return s;
+}
+
+int32 jccsc_cache_init(struct JccscCompileCache* cache) {
+    cache->valid = 0;
+    cache->source_hash = 0;
+    cache->ast_hash = 0;
+    cache->ir_hash = 0;
+    cache->dep_hash = 0;
+    return 1;
+}
+
+int32 jccsc_lexer_mark_keywords(string src, int32 i, struct JccscLexResult* out) {
+    if (jccsc_match_word(src, i, "using")) out->has_using = 1;
+    if (jccsc_match_word(src, i, "global")) out->has_global_using = 1;
+    if (jccsc_match_word(src, i, "namespace")) out->has_namespace = 1;
+    if (jccsc_match_word(src, i, "class")) out->has_class = 1;
+    if (jccsc_match_word(src, i, "var")) out->has_var = 1;
+    if (jccsc_match_word(src, i, "if")) out->has_if = 1;
+    if (jccsc_match_word(src, i, "else")) out->has_else = 1;
+    if (jccsc_match_word(src, i, "switch")) out->has_switch = 1;
+    if (jccsc_match_word(src, i, "case")) out->has_case = 1;
+    if (jccsc_match_word(src, i, "for")) out->has_for = 1;
+    if (jccsc_match_word(src, i, "while")) out->has_while = 1;
+    if (jccsc_match_word(src, i, "do")) out->has_do = 1;
+    if (jccsc_match_word(src, i, "break")) out->has_break = 1;
+    if (jccsc_match_word(src, i, "continue")) out->has_continue = 1;
+    if (jccsc_match_word(src, i, "return")) out->has_return = 1;
+    if (jccsc_match_word(src, i, "try")) out->has_try = 1;
+    if (jccsc_match_word(src, i, "catch")) out->has_catch = 1;
+    if (jccsc_match_word(src, i, "throw")) out->has_throw = 1;
+    return 1;
+}
+
+int32 jccsc_lexer_analyze(string src, struct JccscLexResult* out) {
+    byte* p = src;
+    int32 i = 0;
+    int32 brace_depth = 0;
+
+    out->token_count = 0;
+    out->has_using = 0;
+    out->has_using_alias = 0;
+    out->has_global_using = 0;
+    out->has_namespace = 0;
+    out->has_namespace_dotted = 0;
+    out->has_class = 0;
+    out->has_nested_class = 0;
+    out->has_var = 0;
+    out->has_generic = 0;
+    out->has_if = 0;
+    out->has_else = 0;
+    out->has_switch = 0;
+    out->has_case = 0;
+    out->has_for = 0;
+    out->has_while = 0;
+    out->has_do = 0;
+    out->has_break = 0;
+    out->has_continue = 0;
+    out->has_return = 0;
+    out->has_try = 0;
+    out->has_catch = 0;
+    out->has_throw = 0;
+    out->has_array = 0;
+    out->has_multidim_array = 0;
+    out->has_lambda = 0;
+    out->has_ternary = 0;
+    out->ok = 1;
+
+    while ((*(p + i) & 255) != 0) {
+        int32 ch = *(p + i) & 255;
+
+        if (ch == 123) brace_depth = brace_depth + 1;
+        if (ch == 125) brace_depth = brace_depth - 1;
+
+        if (jccsc_is_alpha(ch)) {
+            out->token_count = out->token_count + 1;
+            jccsc_lexer_mark_keywords(src, i, out);
+
+            if (jccsc_match_word(src, i, "class") && brace_depth > 1) out->has_nested_class = 1;
+            if (jccsc_match_word(src, i, "using")) {
+                int32 j = i + 5;
+                j = jccsc_skip_spaces(p, j);
+                while ((*(p + j) & 255) != 0 && (*(p + j) & 255) != 59) {
+                    if ((*(p + j) & 255) == 61) out->has_using_alias = 1;
+                    if ((*(p + j) & 255) == 46) out->has_namespace_dotted = 1;
+                    j = j + 1;
+                }
+            }
+
+            while (jccsc_is_alnum(*(p + i) & 255)) i = i + 1;
+            continue;
+        }
+
+        if (jccsc_is_digit(ch)) {
+            out->token_count = out->token_count + 1;
+            while (jccsc_is_digit(*(p + i) & 255)) i = i + 1;
+            if ((*(p + i) & 255) == 46) { i = i + 1; while (jccsc_is_digit(*(p + i) & 255)) i = i + 1; }
+            continue;
+        }
+
+        if (ch == 34 || ch == 39) {
+            int32 quote = ch;
+            out->token_count = out->token_count + 1;
+            i = i + 1;
+            while ((*(p + i) & 255) != 0 && ((*(p + i) & 255) != quote)) {
+                if ((*(p + i) & 255) == 92 && (*(p + i + 1) & 255) != 0) i = i + 1;
+                i = i + 1;
+            }
+            if ((*(p + i) & 255) == 0) { out->ok = 0; return 0; }
+            i = i + 1;
+            continue;
+        }
+
+        if (ch == 91 || ch == 93) out->has_array = 1;
+        if (ch == 91 && (*(p + i + 1) & 255) == 44) out->has_multidim_array = 1;
+        if (ch == 60 || ch == 62) out->has_generic = 1;
+        if (ch == 63) out->has_ternary = 1;
+        if (ch == 61 && (*(p + i + 1) & 255) == 62) out->has_lambda = 1;
+
+        if (ch == 123 || ch == 125 || ch == 40 || ch == 41 || ch == 59 || ch == 61 || ch == 43 || ch == 45 || ch == 42 || ch == 47 || ch == 60 || ch == 62 || ch == 33 || ch == 44 || ch == 58 || ch == 91 || ch == 93 || ch == 63 || ch == 46) {
+            out->token_count = out->token_count + 1;
+        }
+        i = i + 1;
+    }
+
+    return 1;
+}
+
+int32 jccsc_ast_zero(struct JccscAst* ast) {
+    ast->using_count = 0;
+    ast->using_alias_count = 0;
+    ast->global_using_count = 0;
+    ast->namespace_count = 0;
+    ast->namespace_depth_max = 0;
+    ast->class_count = 0;
+    ast->nested_class_count = 0;
+    ast->field_count = 0;
+    ast->ctor_count = 0;
+    ast->method_count = 0;
+    ast->var_count = 0;
+    ast->var_infer_count = 0;
+    ast->generic_count = 0;
+    ast->if_count = 0;
+    ast->switch_count = 0;
+    ast->case_count = 0;
+    ast->for_count = 0;
+    ast->while_count = 0;
+    ast->do_count = 0;
+    ast->break_count = 0;
+    ast->continue_count = 0;
+    ast->return_count = 0;
+    ast->try_count = 0;
+    ast->catch_count = 0;
+    ast->throw_count = 0;
+    ast->array_count = 0;
+    ast->multidim_array_count = 0;
+    ast->lambda_count = 0;
+    ast->ternary_count = 0;
+    ast->chaining_count = 0;
+    ast->symbol_conflict_count = 0;
+    return 1;
+}
+
+int32 jccsc_count_namespace_depth(byte* p, int32 i) {
+    int32 depth = 1;
+    i = i + 9;
+    i = jccsc_skip_spaces(p, i);
+    while ((*(p + i) & 255) != 0 && (*(p + i) & 255) != 123 && (*(p + i) & 255) != 59) {
+        if ((*(p + i) & 255) == 46) depth = depth + 1;
+        i = i + 1;
+    }
+    return depth;
+}
+
+int32 jccsc_parser_build_ast(string src, struct JccscAst* ast) {
+    byte* p = src;
+    int32 i = 0;
+    int32 brace_depth = 0;
+    int32 last_method_hash = 0;
+    int32 last_method_arity = -1;
+    jccsc_ast_zero(ast);
+
+    while ((*(p + i) & 255) != 0) {
+        int32 ch = *(p + i) & 255;
+
+        if (ch == 123) brace_depth = brace_depth + 1;
+        if (ch == 125) brace_depth = brace_depth - 1;
+
+        if (ch == 91 && (*(p + i + 1) & 255) == 93) ast->array_count = ast->array_count + 1;
+        if (ch == 91 && (*(p + i + 1) & 255) == 44) ast->multidim_array_count = ast->multidim_array_count + 1;
+        if (ch == 60 || ch == 62) ast->generic_count = ast->generic_count + 1;
+        if (ch == 61 && (*(p + i + 1) & 255) == 62) ast->lambda_count = ast->lambda_count + 1;
+        if (ch == 63) ast->ternary_count = ast->ternary_count + 1;
+        if (ch == 46) ast->chaining_count = ast->chaining_count + 1;
+
+        if (!jccsc_is_alpha(ch)) { i = i + 1; continue; }
+
+        if (jccsc_match_word(src, i, "using")) {
+            ast->using_count = ast->using_count + 1;
+            int32 j = i + 5;
+            j = jccsc_skip_spaces(p, j);
+            if (jccsc_match_word(src, j, "global")) ast->global_using_count = ast->global_using_count + 1;
+            while ((*(p + j) & 255) != 0 && (*(p + j) & 255) != 59) {
+                if ((*(p + j) & 255) == 61) ast->using_alias_count = ast->using_alias_count + 1;
+                j = j + 1;
+            }
+        }
+        if (jccsc_match_word(src, i, "namespace")) {
+            ast->namespace_count = ast->namespace_count + 1;
+            int32 depth = jccsc_count_namespace_depth(p, i);
+            if (depth > ast->namespace_depth_max) ast->namespace_depth_max = depth;
+        }
+        if (jccsc_match_word(src, i, "class")) {
+            ast->class_count = ast->class_count + 1;
+            if (brace_depth > 1) ast->nested_class_count = ast->nested_class_count + 1;
+        }
+
+        if (jccsc_match_word(src, i, "if")) ast->if_count = ast->if_count + 1;
+        if (jccsc_match_word(src, i, "switch")) ast->switch_count = ast->switch_count + 1;
+        if (jccsc_match_word(src, i, "case")) ast->case_count = ast->case_count + 1;
+        if (jccsc_match_word(src, i, "for")) ast->for_count = ast->for_count + 1;
+        if (jccsc_match_word(src, i, "while")) ast->while_count = ast->while_count + 1;
+        if (jccsc_match_word(src, i, "do")) ast->do_count = ast->do_count + 1;
+        if (jccsc_match_word(src, i, "break")) ast->break_count = ast->break_count + 1;
+        if (jccsc_match_word(src, i, "continue")) ast->continue_count = ast->continue_count + 1;
+        if (jccsc_match_word(src, i, "return")) ast->return_count = ast->return_count + 1;
+        if (jccsc_match_word(src, i, "try")) ast->try_count = ast->try_count + 1;
+        if (jccsc_match_word(src, i, "catch")) ast->catch_count = ast->catch_count + 1;
+        if (jccsc_match_word(src, i, "throw")) ast->throw_count = ast->throw_count + 1;
+
+        if (jccsc_is_type_word(src, i)) {
+            int32 decl_type = jccsc_type_code_from_word(src, i);
+            int32 j = i;
+            while (jccsc_is_alnum(*(p + j) & 255)) j = j + 1;
+            while ((*(p + j) & 255) == 60 || (*(p + j) & 255) == 62 || jccsc_is_alnum(*(p + j) & 255) || jccsc_is_space(*(p + j) & 255) || (*(p + j) & 255) == 44) j = j + 1;
+            j = jccsc_skip_spaces(p, j);
+            if (jccsc_is_alpha(*(p + j) & 255)) {
+                int32 name_pos = j;
+                while (jccsc_is_alnum(*(p + j) & 255)) j = j + 1;
+                int32 method_hash = jccsc_ident_hash(p, name_pos);
+                j = jccsc_skip_spaces(p, j);
+                if ((*(p + j) & 255) == 40) {
+                    ast->method_count = ast->method_count + 1;
+                    int32 k = j + 1;
+                    int32 arity = 0;
+                    int32 seen = 0;
+                    while ((*(p + k) & 255) != 0 && (*(p + k) & 255) != 41) {
+                        int32 ck = *(p + k) & 255;
+                        if (jccsc_is_alpha(ck) && seen == 0) { arity = arity + 1; seen = 1; }
+                        if (ck == 44) seen = 0;
+                        k = k + 1;
+                    }
+                    if (method_hash == last_method_hash && arity == last_method_arity) ast->symbol_conflict_count = ast->symbol_conflict_count + 1;
+                    last_method_hash = method_hash;
+                    last_method_arity = arity;
+                }
+                else {
+                    ast->var_count = ast->var_count + 1;
+                    if (ast->class_count > 0 && ast->method_count == 0) ast->field_count = ast->field_count + 1;
+
+                    if (decl_type == 7) ast->var_infer_count = ast->var_infer_count + 1;
+                    if ((*(p + j) & 255) == 61) {
+                        int32 rhs_type = jccsc_type_of_literal(p, j + 1);
+                        int32 imp = 0;
+                        int32 exp = 0;
+                        if (decl_type == 7) {
+                            if (rhs_type == 0) ast->symbol_conflict_count = ast->symbol_conflict_count + 1;
+                        } else {
+                            if (!jccsc_type_compatible(decl_type, rhs_type, &imp, &exp)) ast->symbol_conflict_count = ast->symbol_conflict_count + 1;
+                        }
+                    } else if (decl_type == 7) {
+                        ast->symbol_conflict_count = ast->symbol_conflict_count + 1;
+                    }
+                }
+            }
+        }
+
+        while (jccsc_is_alnum(*(p + i) & 255)) i = i + 1;
+    }
+
+    if (ast->using_alias_count > ast->using_count) ast->symbol_conflict_count = ast->symbol_conflict_count + 1;
+    return 1;
+}
+
+int32 jccsc_semantic_validate(string src, struct JccscAst* ast) {
+    int32 braces = 0;
+    int32 parens = 0;
+    int32 brackets = 0;
+    int32 i = 0;
+    byte* p = src;
+    int32 decl_depth = 0;
+    int32 last_decl_hash = 0;
+    int32 last_decl_depth = -1;
+    int32 semantic_errors = 0;
+
+    if (ast->class_count <= 0) return 0;
+    if (ast->method_count <= 0) return 0;
+    if (ast->try_count > 0 && ast->catch_count <= 0) return 0;
+    if (ast->catch_count > ast->try_count) return 0;
+    if (ast->symbol_conflict_count > 0) return 0;
+
+    while ((*(p + i) & 255) != 0) {
+        int32 ch = *(p + i) & 255;
+        if (ch == 123) braces = braces + 1;
+        if (ch == 125) braces = braces - 1;
+        decl_depth = braces;
+        if (ch == 40) parens = parens + 1;
+        if (ch == 41) parens = parens - 1;
+        if (ch == 91) brackets = brackets + 1;
+        if (ch == 93) brackets = brackets - 1;
+        if (braces < 0 || parens < 0 || brackets < 0) return 0;
+
+        if (jccsc_is_type_word(src, i)) {
+            int32 j = i;
+            while (jccsc_is_alnum(*(p + j) & 255)) j = j + 1;
+            while ((*(p + j) & 255) == 60 || (*(p + j) & 255) == 62 || jccsc_is_alnum(*(p + j) & 255) || jccsc_is_space(*(p + j) & 255) || (*(p + j) & 255) == 44) j = j + 1;
+            j = jccsc_skip_spaces(p, j);
+            if (jccsc_is_alpha(*(p + j) & 255)) {
+                int32 name_hash = jccsc_ident_hash(p, j);
+                if (name_hash == last_decl_hash && last_decl_depth == decl_depth) semantic_errors = semantic_errors + 1;
+                last_decl_hash = name_hash;
+                last_decl_depth = decl_depth;
+            }
+        }
+        i = i + 1;
+    }
+
+    if (braces != 0 || parens != 0 || brackets != 0) return 0;
+    if (semantic_errors > 0) return 0;
+    return 1;
+}
+
+int32 jccsc_ir_build(struct JccscAst* ast, struct JccscIr* ir) {
+    ir->method_count = ast->method_count;
+    ir->field_count = ast->field_count;
+    ir->namespace_count = ast->namespace_count;
+    ir->using_alias_count = ast->using_alias_count;
+    ir->nested_count = ast->nested_class_count;
+    ir->flow_count = ast->if_count + ast->switch_count + ast->for_count + ast->while_count + ast->do_count + ast->break_count + ast->continue_count + ast->return_count;
+    ir->exception_count = ast->try_count + ast->catch_count + ast->throw_count;
+    ir->expression_count = ast->var_count + ast->array_count + ast->multidim_array_count + ast->lambda_count + ast->ternary_count + ast->chaining_count;
+    ir->generic_count = ast->generic_count;
+    ir->var_infer_count = ast->var_infer_count;
+    ir->chain_count = ast->chaining_count;
+    ir->modern_feature_count = 0;
+    ir->ok = 1;
+    return 1;
+}
+
+int32 jccsc_append(byte* out, int32 cap, int32* at, int32 ch) {
+    if ((*at + 1) >= cap) return 0;
+    *(out + *at) = ch;
+    *at = *at + 1;
+    *(out + *at) = 0;
+    return 1;
+}
+
+int32 jccsc_append_word(byte* out, int32 cap, int32* at, string w) {
+    byte* p = w;
+    int32 i = 0;
+    while ((*(p + i) & 255) != 0) {
+        if (!jccsc_append(out, cap, at, *(p + i) & 255)) return 0;
+        i = i + 1;
+    }
+    return 1;
+}
+
+int32 jccsc_skip_to_block_open(byte* p, int32 i) {
+    while ((*(p + i) & 255) != 0 && (*(p + i) & 255) != 123) i = i + 1;
+    if ((*(p + i) & 255) == 123) i = i + 1;
+    return i;
+}
+
+int32 jccsc_backend_skip_until_semicolon(byte* p, int32 i) {
+    while ((*(p + i) & 255) != 0 && (*(p + i) & 255) != 59) i = i + 1;
+    if ((*(p + i) & 255) == 59) i = i + 1;
+    return i;
+}
+
+int32 jccsc_ir_normalize(struct JccscIr* ir) {
+    if (ir->method_count < 0) ir->method_count = 0;
+    if (ir->field_count < 0) ir->field_count = 0;
+    if (ir->namespace_count < 0) ir->namespace_count = 0;
+    if (ir->using_alias_count < 0) ir->using_alias_count = 0;
+    if (ir->nested_count < 0) ir->nested_count = 0;
+    if (ir->flow_count < 0) ir->flow_count = 0;
+    if (ir->exception_count < 0) ir->exception_count = 0;
+    if (ir->expression_count < 0) ir->expression_count = 0;
+    if (ir->generic_count < 0) ir->generic_count = 0;
+    if (ir->var_infer_count < 0) ir->var_infer_count = 0;
+    if (ir->chain_count < 0) ir->chain_count = 0;
+    if (ir->modern_feature_count < 0) ir->modern_feature_count = 0;
+    return 1;
+}
+
+int32 jccsc_ir_optimize(struct JccscIr* ir) {
+    // basic deterministic optimizations over summary IR.
+    if (ir->flow_count == 0 && ir->exception_count == 0 && ir->expression_count > 0) {
+        ir->expression_count = ir->expression_count - 1;
+    }
+    if (ir->chain_count > ir->expression_count) ir->chain_count = ir->expression_count;
+    if (ir->using_alias_count > ir->namespace_count && ir->namespace_count > 0) {
+        ir->using_alias_count = ir->namespace_count;
+    }
+    if (ir->generic_count > ir->expression_count) ir->generic_count = ir->expression_count;
+    if (ir->modern_feature_count > (ir->expression_count + ir->flow_count + ir->exception_count)) {
+        ir->modern_feature_count = ir->expression_count + ir->flow_count + ir->exception_count;
+    }
+    return 1;
+}
+
+int32 jccsc_backend_optimize(byte* out) {
+    int32 r = 0;
+    int32 w = 0;
+    int32 prev_space = 0;
+    int32 prev_nl = 0;
+    while ((*(out + r) & 255) != 0) {
+        int32 ch = *(out + r) & 255;
+        if (ch == 9 || ch == 32) {
+            if (prev_space) { r = r + 1; continue; }
+            prev_space = 1;
+            ch = 32;
+        } else {
+            prev_space = 0;
+        }
+        if (ch == 10) {
+            if (prev_nl) { r = r + 1; continue; }
+            prev_nl = 1;
+        } else {
+            prev_nl = 0;
+        }
+        *(out + w) = ch;
+        w = w + 1;
+        r = r + 1;
+    }
+    *(out + w) = 0;
+    return 1;
+}
+
+int32 jccsc_diag_append_char(struct JccscDiagnosticEngine* d, int32 ch) {
+    if (d->report == 0) return 1;
+    if ((d->report_len + 1) >= d->report_cap) return 0;
+    *(d->report + d->report_len) = ch;
+    d->report_len = d->report_len + 1;
+    *(d->report + d->report_len) = 0;
+    return 1;
+}
+
+int32 jccsc_diag_append_text(struct JccscDiagnosticEngine* d, string s) {
+    byte* p = s;
+    int32 i = 0;
+    while ((*(p + i) & 255) != 0) {
+        if (!jccsc_diag_append_char(d, *(p + i) & 255)) return 0;
+        i = i + 1;
+    }
+    return 1;
+}
+
+int32 jccsc_diag_append_i32(struct JccscDiagnosticEngine* d, int32 v) {
+    int32 n = v;
+    if (n == 0) return jccsc_diag_append_char(d, 48);
+    if (n < 0) {
+        if (!jccsc_diag_append_char(d, 45)) return 0;
+        n = -n;
+    }
+    int32 div = 1;
+    while ((n / div) >= 10) div = div * 10;
+    while (div > 0) {
+        int32 digit = n / div;
+        if (!jccsc_diag_append_char(d, 48 + digit)) return 0;
+        n = n % div;
+        div = div / 10;
+    }
+    return 1;
+}
+
+int32 jccsc_index_to_line_col(string src, int32 pos, int32* line, int32* col) {
+    byte* p = src;
+    int32 i = 0;
+    *line = 1;
+    *col = 1;
+    while ((*(p + i) & 255) != 0 && i < pos) {
+        if ((*(p + i) & 255) == 10) { *line = *line + 1; *col = 1; }
+        else *col = *col + 1;
+        i = i + 1;
+    }
+    return 1;
+}
+
+int32 jccsc_diag_init(struct JccscDiagnosticEngine* d, byte* report, int32 cap, int32 verbose) {
+    d->error_count = 0;
+    d->warning_count = 0;
+    d->info_count = 0;
+    d->hint_count = 0;
+    d->diagnostic_count = 0;
+    d->verbose = verbose;
+    d->report_len = 0;
+    d->report_cap = cap;
+    d->report = report;
+    d->last_code = 0;
+    d->last_severity = 0;
+    d->last_phase = 0;
+    d->last_line = 0;
+    d->last_col = 0;
+    d->last_start = 0;
+    d->last_end = 0;
+    if (report != 0 && cap > 0) *report = 0;
+    return 1;
+}
+
+int32 jccsc_diag_emit(struct JccscDiagnosticEngine* d, int32 code, int32 severity, int32 phase, int32 line, int32 col, int32 start, int32 end, string message, string suggestion) {
+    d->diagnostic_count = d->diagnostic_count + 1;
+    if (severity == 1) d->error_count = d->error_count + 1;
+    else if (severity == 2) d->warning_count = d->warning_count + 1;
+    else if (severity == 3) d->info_count = d->info_count + 1;
+    else d->hint_count = d->hint_count + 1;
+
+    d->last_code = code;
+    d->last_severity = severity;
+    d->last_phase = phase;
+    d->last_line = line;
+    d->last_col = col;
+    d->last_start = start;
+    d->last_end = end;
+
+    if (d->report == 0) return 1;
+    if (severity == 1) jccsc_diag_append_text(d, "Error ");
+    else if (severity == 2) jccsc_diag_append_text(d, "Warning ");
+    else if (severity == 3) jccsc_diag_append_text(d, "Info ");
+    else jccsc_diag_append_text(d, "Hint ");
+    jccsc_diag_append_text(d, "JCCSC");
+    jccsc_diag_append_i32(d, code);
+    jccsc_diag_append_text(d, ": ");
+    jccsc_diag_append_text(d, message);
+    jccsc_diag_append_text(d, " [phase=");
+    jccsc_diag_append_i32(d, phase);
+    jccsc_diag_append_text(d, ", line=");
+    jccsc_diag_append_i32(d, line);
+    jccsc_diag_append_text(d, ", col=");
+    jccsc_diag_append_i32(d, col);
+    jccsc_diag_append_text(d, "]\n");
+    if (d->verbose) {
+        jccsc_diag_append_text(d, "  range: ");
+        jccsc_diag_append_i32(d, start);
+        jccsc_diag_append_text(d, "-");
+        jccsc_diag_append_i32(d, end);
+        jccsc_diag_append_text(d, "\n  suggestion: ");
+        jccsc_diag_append_text(d, suggestion);
+        jccsc_diag_append_text(d, "\n");
+    }
+    return 1;
+}
+
+int32 jccsc_diag_summary(struct JccscDiagnosticEngine* d) {
+    if (d->report == 0) return 1;
+    jccsc_diag_append_text(d, "Summary: errors=");
+    jccsc_diag_append_i32(d, d->error_count);
+    jccsc_diag_append_text(d, ", warnings=");
+    jccsc_diag_append_i32(d, d->warning_count);
+    jccsc_diag_append_text(d, ", info=");
+    jccsc_diag_append_i32(d, d->info_count);
+    jccsc_diag_append_text(d, ", hints=");
+    jccsc_diag_append_i32(d, d->hint_count);
+    jccsc_diag_append_text(d, "\n");
+    return 1;
+}
+
+int32 jccsc_debug_append(struct JccscDebugSession* dbg, string s) {
+    if (!dbg->enabled || dbg->trace == 0) return 1;
+    byte* p = s;
+    int32 i = 0;
+    while ((*(p + i) & 255) != 0) {
+        if ((dbg->trace_len + 1) >= dbg->trace_cap) return 0;
+        *(dbg->trace + dbg->trace_len) = *(p + i) & 255;
+        dbg->trace_len = dbg->trace_len + 1;
+        i = i + 1;
+    }
+    *(dbg->trace + dbg->trace_len) = 0;
+    return 1;
+}
+
+int32 jccsc_debug_append_i32(struct JccscDebugSession* dbg, int32 v) {
+    int32 n = v;
+    if (n == 0) return jccsc_debug_append(dbg, "0");
+    if (n < 0) { jccsc_debug_append(dbg, "-"); n = -n; }
+    int32 div = 1;
+    while ((n / div) >= 10) div = div * 10;
+    while (div > 0) {
+        int32 digit = n / div;
+        int32 ch = 48 + digit;
+        if ((dbg->trace_len + 1) >= dbg->trace_cap) return 0;
+        *(dbg->trace + dbg->trace_len) = ch;
+        dbg->trace_len = dbg->trace_len + 1;
+        *(dbg->trace + dbg->trace_len) = 0;
+        n = n % div;
+        div = div / 10;
+    }
+    return 1;
+}
+
+int32 jccsc_debug_enable(struct JccscDebugSession* dbg, byte* trace, int32 cap, int32 mode) {
+    dbg->enabled = 1;
+    dbg->trace_mode = mode;
+    dbg->breakpoint_phase = 0;
+    dbg->breakpoint_line = 0;
+    dbg->breakpoint_symbol = 0;
+    dbg->paused = 0;
+    dbg->trace = trace;
+    dbg->trace_len = 0;
+    dbg->trace_cap = cap;
+    if (trace != 0 && cap > 0) *trace = 0;
+    return 1;
+}
+
+int32 jccsc_debug_set_breakpoint(struct JccscDebugSession* dbg, int32 phase, int32 line, int32 symbol_hash) {
+    dbg->breakpoint_phase = phase;
+    dbg->breakpoint_line = line;
+    dbg->breakpoint_symbol = symbol_hash;
+    return 1;
+}
+
+int32 jccsc_debug_phase(struct JccscDebugSession* dbg, int32 phase, string title) {
+    if (!dbg->enabled) return 1;
+    if (dbg->trace_mode >= 1) {
+        jccsc_debug_append(dbg, "[Phase] ");
+        jccsc_debug_append(dbg, title);
+        jccsc_debug_append(dbg, "]\n");
+    }
+    if (dbg->breakpoint_phase == phase) {
+        dbg->paused = 1;
+        jccsc_debug_append(dbg, "[Breakpoint hit]\n");
+        return 0;
+    }
+    return 1;
+}
+
+int32 jccsc_debug_dump_ast_text(struct JccscAst* ast, byte* out, int32 cap) {
+    struct JccscDebugSession dbg;
+    jccsc_debug_enable(&dbg, out, cap, 2);
+    jccsc_debug_append(&dbg, "CompilationUnit\n");
+    jccsc_debug_append(&dbg, " ├─ namespaces\n");
+    jccsc_debug_append(&dbg, " ├─ classes\n");
+    jccsc_debug_append(&dbg, " ├─ methods\n");
+    jccsc_debug_append(&dbg, " └─ flow\n");
+    return 1;
+}
+
+int32 jccsc_debug_dump_ast_json(struct JccscAst* ast, byte* out, int32 cap) {
+    struct JccscDebugSession dbg;
+    jccsc_debug_enable(&dbg, out, cap, 2);
+    jccsc_debug_append(&dbg, "{\"node\":\"CompilationUnit\",\"classes\":\"");
+    jccsc_debug_append_i32(&dbg, ast->class_count);
+    jccsc_debug_append(&dbg, "\",\"methods\":\"");
+    jccsc_debug_append_i32(&dbg, ast->method_count);
+    jccsc_debug_append(&dbg, "\"}");
+    return 1;
+}
+
+int32 jccsc_debug_dump_ir(struct JccscIr* ir, byte* out, int32 cap) {
+    struct JccscDebugSession dbg;
+    jccsc_debug_enable(&dbg, out, cap, 2);
+    jccsc_debug_append(&dbg, "IR {\n");
+    jccsc_debug_append(&dbg, "  flow, expr, modern\n");
+    jccsc_debug_append(&dbg, "}\n");
+    return 1;
+}
+
+int32 jccsc_backend_translate(string src, byte* out, int32 out_cap) {
+    // Advanced progressive lowering with graceful degradation.
+    byte* p = src;
+    int32 i = 0;
+    int32 at = 0;
+    int32 strip_depth = 0;
+
+    while ((*(p + i) & 255) != 0) {
+        int32 ch = *(p + i) & 255;
+
+        if (jccsc_match_word(src, i, "using") || (jccsc_match_word(src, i, "global") && jccsc_match_word(src, i + 6, "using"))) {
+            i = jccsc_backend_skip_until_semicolon(p, i);
+            continue;
+        }
+
+        if (jccsc_match_word(src, i, "namespace") || jccsc_match_word(src, i, "class")) {
+            i = jccsc_skip_to_block_open(p, i);
+            strip_depth = strip_depth + 1;
+            continue;
+        }
+
+        if (jccsc_match_word(src, i, "public") || jccsc_match_word(src, i, "private") || jccsc_match_word(src, i, "const") || jccsc_match_word(src, i, "new")) {
+            while (jccsc_is_alnum(*(p + i) & 255)) i = i + 1;
+            while (jccsc_is_space(*(p + i) & 255)) i = i + 1;
+            continue;
+        }
+
+        if (jccsc_match_word(src, i, "var")) { if (!jccsc_append_word(out, out_cap, &at, "int64")) return 0; i = i + 3; continue; }
+        if (jccsc_match_word(src, i, "dynamic")) { if (!jccsc_append_word(out, out_cap, &at, "int64")) return 0; i = i + 7; continue; }
+        if (jccsc_match_word(src, i, "int")) { if (!jccsc_append_word(out, out_cap, &at, "int32")) return 0; i = i + 3; continue; }
+        if (jccsc_match_word(src, i, "float")) { if (!jccsc_append_word(out, out_cap, &at, "int64")) return 0; i = i + 5; continue; }
+        if (jccsc_match_word(src, i, "double")) { if (!jccsc_append_word(out, out_cap, &at, "int64")) return 0; i = i + 6; continue; }
+        if (jccsc_match_word(src, i, "char")) { if (!jccsc_append_word(out, out_cap, &at, "byte")) return 0; i = i + 4; continue; }
+        if (jccsc_match_word(src, i, "record")) { if (!jccsc_append_word(out, out_cap, &at, "struct")) return 0; i = i + 6; continue; }
+        if (jccsc_match_word(src, i, "interface")) { if (!jccsc_append_word(out, out_cap, &at, "struct")) return 0; i = i + 9; continue; }
+        if (jccsc_match_word(src, i, "delegate")) { if (!jccsc_append_word(out, out_cap, &at, "/*delegate*/")) return 0; i = i + 8; continue; }
+        if (jccsc_match_word(src, i, "Func") || jccsc_match_word(src, i, "Action")) {
+            if (!jccsc_append_word(out, out_cap, &at, "/*fn*/")) return 0;
+            if ((*(p + i) & 255) == 70) i = i + 4;
+            else i = i + 6;
+            continue;
+        }
+        if (jccsc_match_word(src, i, "async")) { i = i + 5; continue; }
+        if (jccsc_match_word(src, i, "await")) { i = i + 5; continue; }
+        if (jccsc_match_word(src, i, "where") || jccsc_match_word(src, i, "select") || jccsc_match_word(src, i, "orderby") || jccsc_match_word(src, i, "group")) {
+            if (!jccsc_append_word(out, out_cap, &at, "/*linq*/")) return 0;
+            if (jccsc_match_word(src, i, "where")) i = i + 5;
+            else if (jccsc_match_word(src, i, "select")) i = i + 6;
+            else if (jccsc_match_word(src, i, "orderby")) i = i + 7;
+            else i = i + 5;
+            continue;
+        }
+
+        if (jccsc_match_word(src, i, "try")) { if (!jccsc_append_word(out, out_cap, &at, "if (1)")) return 0; i = i + 3; continue; }
+        if (jccsc_match_word(src, i, "catch")) { if (!jccsc_append_word(out, out_cap, &at, "else")) return 0; i = i + 5; continue; }
+        if (jccsc_match_word(src, i, "throw")) { if (!jccsc_append_word(out, out_cap, &at, "return")) return 0; i = i + 5; continue; }
+
+        if (ch == 61 && (*(p + i + 1) & 255) == 62) {
+            if (!jccsc_append_word(out, out_cap, &at, "/*lambda*/")) return 0;
+            i = i + 2;
+            continue;
+        }
+
+        // degrade method chaining a.b.c() -> a_b_c() for C! compatibility.
+        if (ch == 46) {
+            if (!jccsc_append(out, out_cap, &at, 95)) return 0;
+            i = i + 1;
+            continue;
+        }
+
+        // nullable type marker degradation (T? -> T) while preserving ternary.
+        if (ch == 63 && (*(p + i + 1) & 255) != 32 && (*(p + i + 1) & 255) != 58) {
+            i = i + 1;
+            continue;
+        }
+
+        if (strip_depth > 0 && ch == 125) {
+            strip_depth = strip_depth - 1;
+            i = i + 1;
+            continue;
+        }
+
+        if (!jccsc_append(out, out_cap, &at, ch)) return 0;
+        i = i + 1;
+    }
+
+    return 1;
+}
+
+int32 jccsc_compile_to_cbang(string csharp_src, byte* out, int32 out_cap, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir) {
+    if (!jccsc_lexer_analyze(csharp_src, lex)) return 0;
+    if (!lex->ok) return 0;
+    if (!jccsc_parser_build_ast(csharp_src, ast)) return 0;
+    if (!jccsc_semantic_validate(csharp_src, ast)) return 0;
+    if (!jccsc_ir_build(ast, ir)) return 0;
+    ir->modern_feature_count = jccsc_modern_feature_score(csharp_src);
+    if (!jccsc_ir_normalize(ir)) return 0;
+    if (!jccsc_ir_optimize(ir)) return 0;
+    if (!jccsc_backend_translate(csharp_src, out, out_cap)) return 0;
+    if (!jccsc_backend_optimize(out)) return 0;
+    return 1;
+}
+
+int32 jccsc_compile_incremental(string csharp_src, byte* out, int32 out_cap, struct JccscCompileCache* cache, struct JccscBuildStats* stats, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir) {
+    int32 src_hash = jccsc_hash_source(csharp_src);
+    stats->cache_hit = 0;
+    stats->lex_ran = 0;
+    stats->parse_ran = 0;
+    stats->semantic_ran = 0;
+    stats->ir_ran = 0;
+    stats->backend_ran = 0;
+
+    if (cache->valid && cache->source_hash == src_hash) {
+        stats->cache_hit = 1;
+        stats->backend_ran = 1;
+        if (!jccsc_backend_translate(csharp_src, out, out_cap)) return 0;
+        if (!jccsc_backend_optimize(out)) return 0;
+        return 1;
+    }
+
+    stats->lex_ran = 1;
+    if (!jccsc_lexer_analyze(csharp_src, lex)) return 0;
+    if (!lex->ok) return 0;
+    stats->parse_ran = 1;
+    if (!jccsc_parser_build_ast(csharp_src, ast)) return 0;
+    stats->semantic_ran = 1;
+    if (!jccsc_semantic_validate(csharp_src, ast)) return 0;
+    stats->ir_ran = 1;
+    if (!jccsc_ir_build(ast, ir)) return 0;
+    ir->modern_feature_count = jccsc_modern_feature_score(csharp_src);
+    if (!jccsc_ir_normalize(ir)) return 0;
+    if (!jccsc_ir_optimize(ir)) return 0;
+    stats->backend_ran = 1;
+    if (!jccsc_backend_translate(csharp_src, out, out_cap)) return 0;
+    if (!jccsc_backend_optimize(out)) return 0;
+
+    cache->valid = 1;
+    cache->source_hash = src_hash;
+    cache->ast_hash = jccsc_ast_fingerprint(ast);
+    cache->ir_hash = jccsc_ir_fingerprint(ir);
+    cache->dep_hash = jccsc_dependency_hash(lex, ast);
+    return 1;
+}
+
+int32 jccsc_compile_debug(string csharp_src, byte* out, int32 out_cap, struct JccscDebugSession* dbg, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir) {
+    if (!jccsc_debug_phase(dbg, 1, "Lexer")) return 2;
+    if (!jccsc_lexer_analyze(csharp_src, lex)) return 0;
+    if (!lex->ok) return 0;
+
+    if (!jccsc_debug_phase(dbg, 2, "Parser")) return 2;
+    if (!jccsc_parser_build_ast(csharp_src, ast)) return 0;
+
+    if (!jccsc_debug_phase(dbg, 3, "Semantic")) return 2;
+    if (!jccsc_semantic_validate(csharp_src, ast)) return 0;
+
+    if (!jccsc_debug_phase(dbg, 4, "IR Generation")) return 2;
+    if (!jccsc_ir_build(ast, ir)) return 0;
+    ir->modern_feature_count = jccsc_modern_feature_score(csharp_src);
+
+    if (!jccsc_debug_phase(dbg, 5, "IR Optimization")) return 2;
+    if (!jccsc_ir_normalize(ir)) return 0;
+    if (!jccsc_ir_optimize(ir)) return 0;
+
+    if (!jccsc_debug_phase(dbg, 6, "Backend")) return 2;
+    if (!jccsc_backend_translate(csharp_src, out, out_cap)) return 0;
+    if (!jccsc_backend_optimize(out)) return 0;
+
+    return 1;
+}
+
+int32 jccsc_compile_with_diagnostics(string csharp_src, byte* out, int32 out_cap, struct JccscDiagnosticEngine* diag, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir) {
+    int32 line = 1;
+    int32 col = 1;
+    if (!jccsc_lexer_analyze(csharp_src, lex)) {
+        jccsc_index_to_line_col(csharp_src, 0, &line, &col);
+        jccsc_diag_emit(diag, 1001, 1, 1, line, col, 0, 0, "Token invalido o string sin cerrar", "Verifica comillas y caracteres especiales.");
+        jccsc_diag_summary(diag);
+        return 0;
+    }
+    if (!lex->ok) {
+        jccsc_diag_emit(diag, 1002, 1, 1, 1, 1, 0, 0, "Lexer detecto entrada invalida", "Corrige el literal o simbolo invalido.");
+        jccsc_diag_summary(diag);
+        return 0;
+    }
+
+    if (!jccsc_parser_build_ast(csharp_src, ast)) {
+        jccsc_diag_emit(diag, 2001, 1, 2, 1, 1, 0, 0, "Parser no pudo construir AST", "Revisa estructura de bloques y delimitadores.");
+        jccsc_diag_summary(diag);
+        return 0;
+    }
+
+    if (!jccsc_semantic_validate(csharp_src, ast)) {
+        jccsc_diag_emit(diag, 3001, 1, 3, 1, 1, 0, 0, "Error semantico en tipos/simbolos/scope", "Corrige tipos incompatibles o simbolos ambiguos.");
+        jccsc_diag_summary(diag);
+        return 0;
+    }
+
+    if (ast->var_count > 0 && ast->var_infer_count == 0) {
+        jccsc_diag_emit(diag, 3002, 2, 3, 1, 1, 0, 0, "Variables declaradas sin uso de inferencia var", "Considera var para expresiones simples o elimina variables no usadas.");
+    }
+
+    if (!jccsc_ir_build(ast, ir)) {
+        jccsc_diag_emit(diag, 4001, 1, 4, 1, 1, 0, 0, "No se pudo construir IR", "Verifica consistencia AST antes de IR.");
+        jccsc_diag_summary(diag);
+        return 0;
+    }
+
+    ir->modern_feature_count = jccsc_modern_feature_score(csharp_src);
+    if (!jccsc_ir_normalize(ir) || !jccsc_ir_optimize(ir)) {
+        jccsc_diag_emit(diag, 4002, 1, 4, 1, 1, 0, 0, "IR invalido tras normalizacion/optimizacion", "Revisa nodos redundantes y consistencia de conteos.");
+        jccsc_diag_summary(diag);
+        return 0;
+    }
+
+    if (!jccsc_backend_translate(csharp_src, out, out_cap) || !jccsc_backend_optimize(out)) {
+        jccsc_diag_emit(diag, 5001, 1, 5, 1, 1, 0, 0, "Backend no pudo generar C! valido", "Reduce expresiones complejas o revisa degradacion de features.");
+        jccsc_diag_summary(diag);
+        return 0;
+    }
+
+    if (ir->modern_feature_count > 0) {
+        jccsc_diag_emit(diag, 5002, 3, 5, 1, 1, 0, 0, "Features modernas degradadas a subset C! compatible", "Revisa salida C! para validar equivalencia semantica.");
+    }
+    jccsc_diag_summary(diag);
+    return 1;
+}

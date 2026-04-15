@@ -1,0 +1,158 @@
+#pragma once
+#ifndef JCCSC_H
+#define JCCSC_H
+
+struct JccscLexResult {
+    int32 token_count;
+    int32 has_using;
+    int32 has_using_alias;
+    int32 has_global_using;
+    int32 has_namespace;
+    int32 has_namespace_dotted;
+    int32 has_class;
+    int32 has_nested_class;
+    int32 has_var;
+    int32 has_generic;
+    int32 has_if;
+    int32 has_else;
+    int32 has_switch;
+    int32 has_case;
+    int32 has_for;
+    int32 has_while;
+    int32 has_do;
+    int32 has_break;
+    int32 has_continue;
+    int32 has_return;
+    int32 has_try;
+    int32 has_catch;
+    int32 has_throw;
+    int32 has_array;
+    int32 has_multidim_array;
+    int32 has_lambda;
+    int32 has_ternary;
+    int32 ok;
+};
+
+struct JccscAst {
+    int32 using_count;
+    int32 using_alias_count;
+    int32 global_using_count;
+    int32 namespace_count;
+    int32 namespace_depth_max;
+    int32 class_count;
+    int32 nested_class_count;
+    int32 field_count;
+    int32 ctor_count;
+    int32 method_count;
+    int32 var_count;
+    int32 var_infer_count;
+    int32 generic_count;
+    int32 if_count;
+    int32 switch_count;
+    int32 case_count;
+    int32 for_count;
+    int32 while_count;
+    int32 do_count;
+    int32 break_count;
+    int32 continue_count;
+    int32 return_count;
+    int32 try_count;
+    int32 catch_count;
+    int32 throw_count;
+    int32 array_count;
+    int32 multidim_array_count;
+    int32 lambda_count;
+    int32 ternary_count;
+    int32 chaining_count;
+    int32 symbol_conflict_count;
+};
+
+struct JccscIr {
+    int32 method_count;
+    int32 field_count;
+    int32 namespace_count;
+    int32 using_alias_count;
+    int32 nested_count;
+    int32 flow_count;
+    int32 exception_count;
+    int32 expression_count;
+    int32 generic_count;
+    int32 var_infer_count;
+    int32 chain_count;
+    int32 modern_feature_count;
+    int32 ok;
+};
+
+struct JccscCompileCache {
+    int32 valid;
+    int32 source_hash;
+    int32 ast_hash;
+    int32 ir_hash;
+    int32 dep_hash;
+};
+
+struct JccscBuildStats {
+    int32 cache_hit;
+    int32 lex_ran;
+    int32 parse_ran;
+    int32 semantic_ran;
+    int32 ir_ran;
+    int32 backend_ran;
+};
+
+struct JccscDiagnosticEngine {
+    int32 error_count;
+    int32 warning_count;
+    int32 info_count;
+    int32 hint_count;
+    int32 diagnostic_count;
+    int32 verbose;
+    int32 report_len;
+    int32 report_cap;
+    byte* report;
+    int32 last_code;
+    int32 last_severity;
+    int32 last_phase;
+    int32 last_line;
+    int32 last_col;
+    int32 last_start;
+    int32 last_end;
+};
+
+struct JccscDebugSession {
+    int32 enabled;
+    int32 trace_mode;
+    int32 breakpoint_phase;
+    int32 breakpoint_line;
+    int32 breakpoint_symbol;
+    int32 paused;
+    byte* trace;
+    int32 trace_len;
+    int32 trace_cap;
+};
+
+int32 jccsc_lexer_analyze(string src, struct JccscLexResult* out);
+int32 jccsc_parser_build_ast(string src, struct JccscAst* ast);
+int32 jccsc_semantic_validate(string src, struct JccscAst* ast);
+int32 jccsc_ir_build(struct JccscAst* ast, struct JccscIr* ir);
+int32 jccsc_ir_normalize(struct JccscIr* ir);
+int32 jccsc_ir_optimize(struct JccscIr* ir);
+int32 jccsc_backend_translate(string src, byte* out, int32 out_cap);
+int32 jccsc_backend_optimize(byte* out);
+int32 jccsc_compile_to_cbang(string csharp_src, byte* out, int32 out_cap, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir);
+int32 jccsc_hash_source(string src);
+int32 jccsc_modern_feature_score(string src);
+int32 jccsc_cache_init(struct JccscCompileCache* cache);
+int32 jccsc_compile_incremental(string csharp_src, byte* out, int32 out_cap, struct JccscCompileCache* cache, struct JccscBuildStats* stats, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir);
+int32 jccsc_debug_enable(struct JccscDebugSession* dbg, byte* trace, int32 cap, int32 mode);
+int32 jccsc_debug_set_breakpoint(struct JccscDebugSession* dbg, int32 phase, int32 line, int32 symbol_hash);
+int32 jccsc_debug_dump_ast_text(struct JccscAst* ast, byte* out, int32 cap);
+int32 jccsc_debug_dump_ast_json(struct JccscAst* ast, byte* out, int32 cap);
+int32 jccsc_debug_dump_ir(struct JccscIr* ir, byte* out, int32 cap);
+int32 jccsc_compile_debug(string csharp_src, byte* out, int32 out_cap, struct JccscDebugSession* dbg, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir);
+int32 jccsc_diag_init(struct JccscDiagnosticEngine* d, byte* report, int32 cap, int32 verbose);
+int32 jccsc_diag_emit(struct JccscDiagnosticEngine* d, int32 code, int32 severity, int32 phase, int32 line, int32 col, int32 start, int32 end, string message, string suggestion);
+int32 jccsc_diag_summary(struct JccscDiagnosticEngine* d);
+int32 jccsc_compile_with_diagnostics(string csharp_src, byte* out, int32 out_cap, struct JccscDiagnosticEngine* diag, struct JccscLexResult* lex, struct JccscAst* ast, struct JccscIr* ir);
+
+#endif
