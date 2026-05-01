@@ -16,7 +16,7 @@ run_case() {
   local extra=("$@")
   local bin="$WORK_DIR/$name"
 
-  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" "${extra[@]}" >/dev/null; then
+  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$src" "$bin" "${extra[@]}" >/dev/null; then
     echo "[FAIL] $name compile/link error"
     fail=1
     return

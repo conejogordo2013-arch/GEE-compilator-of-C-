@@ -84,12 +84,17 @@ install: stage0
 	cp "scripts/gee-doctor.sh" "$(BINDIR)/gee-doctor"
 	cp "scripts/gee-new.sh" "$(BINDIR)/gee-new"
 	cp "scripts/gee-run.sh" "$(BINDIR)/gee-run"
+	cp "scripts/geecc.sh" "$(BINDIR)/geecc"
 	mkdir -p "$(PREFIX)/etc/gee"
-	printf "x86-64\n" > "$(PREFIX)/etc/gee/target"
-	chmod 755 "$(BINDIR)/gee-core" "$(BINDIR)/gee" "$(BINDIR)/gee-target" "$(BINDIR)/gee-doctor" "$(BINDIR)/gee-new" "$(BINDIR)/gee-run"
+	if [ "$$(uname -m)" = "aarch64" ] || [ "$$(uname -m)" = "arm64" ]; then \
+		printf "arm-64\n" > "$(PREFIX)/etc/gee/target"; \
+	else \
+		printf "x86-64\n" > "$(PREFIX)/etc/gee/target"; \
+	fi
+	chmod 755 "$(BINDIR)/gee-core" "$(BINDIR)/gee" "$(BINDIR)/gee-target" "$(BINDIR)/gee-doctor" "$(BINDIR)/gee-new" "$(BINDIR)/gee-run" "$(BINDIR)/geecc"
 
 uninstall:
-	rm -f "$(BINDIR)/gee" "$(BINDIR)/gee-core" "$(BINDIR)/gee-target" "$(BINDIR)/gee-doctor" "$(BINDIR)/gee-new" "$(BINDIR)/gee-run" "$(BINDIR)/gee-x86" "$(BINDIR)/gee-x86-64" "$(BINDIR)/gee-arm-v7" "$(BINDIR)/gee-arm-64"
+	rm -f "$(BINDIR)/gee" "$(BINDIR)/gee-core" "$(BINDIR)/gee-target" "$(BINDIR)/gee-doctor" "$(BINDIR)/gee-new" "$(BINDIR)/gee-run" "$(BINDIR)/geecc" "$(BINDIR)/gee-x86" "$(BINDIR)/gee-x86-64" "$(BINDIR)/gee-arm-v7" "$(BINDIR)/gee-arm-64"
 	rm -f "$(PREFIX)/etc/gee/target"
 
 install-menu:
@@ -138,6 +143,14 @@ abi-interop:
 
 all-tests: quality-gate abi-interop bootstrap-no-cc-smoke
 test: all-tests
+test-cross-arch:
+	bash tests/test_cross_arch_compat.sh
+test-geecc:
+	bash tests/test_geecc_plug_and_play.sh
+test-gee-driver:
+	bash tests/test_gee_frontend_driver.sh
+test-all-cb-dual-target:
+	bash tests/test_all_cb_dual_target.sh
 
 dev-test:
 	bash scripts/gee-dev-test.sh
@@ -145,4 +158,4 @@ dev-test:
 smoke-hola-mundo:
 	bash scripts/smoke-hola-mundo.sh
 
-.PHONY: all stage0 original advanced bootstrap bootstrap-smoke bootstrap-no-cc bootstrap-no-cc-smoke no-cc-demo run-example no-cc-proof arm-stdlib selfhost-audit test-language-runtime test-frontend-robustness test-complex-cases test-stutilsio test-libcbang test-deep-validation test-ogl test-ogl2d test-ogl3d test-jccsc compat-matrix quality-gate abi-interop all-tests test dev-test smoke-hola-mundo clean install uninstall install-menu
+.PHONY: all stage0 original advanced bootstrap bootstrap-smoke bootstrap-no-cc bootstrap-no-cc-smoke no-cc-demo run-example no-cc-proof arm-stdlib selfhost-audit test-language-runtime test-frontend-robustness test-complex-cases test-stutilsio test-libcbang test-deep-validation test-ogl test-ogl2d test-ogl3d test-jccsc compat-matrix quality-gate abi-interop all-tests test test-cross-arch test-geecc test-gee-driver test-all-cb-dual-target dev-test smoke-hola-mundo clean install uninstall install-menu

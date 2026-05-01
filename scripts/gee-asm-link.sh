@@ -2,11 +2,15 @@
 set -euo pipefail
 
 if [ $# -lt 2 ]; then
-  echo "uso: gee-asm-link.sh <target:x86-64|arm-64> <input.cb> [output_bin] [extra_asm.s ...]" >&2
+  echo "uso: gee-asm-link.sh <target:host|x86-64|arm-64> <input.cb> [output_bin] [extra_asm.s ...]" >&2
   exit 2
 fi
 
 TARGET="$1"
+if [ "$TARGET" = "host" ]; then
+  H="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$H" = "aarch64" ] || [ "$H" = "arm64" ]; then TARGET="arm-64"; else TARGET="x86-64"; fi
+fi
 INPUT="$2"
 OUT_BIN="${3:-a.out}"
 shift 3 || true

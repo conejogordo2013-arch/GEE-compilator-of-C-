@@ -15,8 +15,8 @@ run_x86_case() {
   local stdlib_root="${4:-}"
   local bin="$WORK_DIR/${name}_x86"
 
-  if ! GEE_STDLIB="$stdlib_root" GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" >/dev/null 2>&1; then
-    echo "[FAIL] $name(x86-64): compile/link failed"
+  if ! GEE_STDLIB="$stdlib_root" GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$src" "$bin" >/dev/null 2>&1; then
+    echo "[FAIL] $name(host): compile/link failed"
     fail=1
     return
   fi
@@ -26,11 +26,11 @@ run_x86_case() {
   local rc=$?
   set -e
   if [[ "$rc" -ne "$expected" ]]; then
-    echo "[FAIL] $name(x86-64): expected exit=$expected got=$rc"
+    echo "[FAIL] $name(host): expected exit=$expected got=$rc"
     fail=1
     return
   fi
-  echo "[PASS] $name(x86-64) exit=$rc"
+  echo "[PASS] $name(host) exit=$rc"
 }
 
 check_arm_emit() {
@@ -55,7 +55,7 @@ run_host_output_case() {
   local bin="$WORK_DIR/${name}_host_bin"
   local out_txt="$WORK_DIR/${name}_stdout.txt"
 
-  if ! GEE_STDLIB="$stdlib_root" GEE_TARGET=x86-64 "$GEE_BIN" "$src" "$asm" >/dev/null 2>&1; then
+  if ! GEE_STDLIB="$stdlib_root" "$GEE_BIN" "$src" "$asm" >/dev/null 2>&1; then
     echo "[FAIL] $name(host-output): compile failed"
     fail=1
     return
