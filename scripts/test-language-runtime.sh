@@ -22,7 +22,7 @@ fail=0
 for src in "$TEST_DIR"/*.cb; do
   name="$(basename "$src" .cb)"
   bin="$OUT_DIR/$name"
-  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" "${EXTRA_TEST_LIBS[@]}" >/dev/null; then
+  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$src" "$bin" "${EXTRA_TEST_LIBS[@]}" >/dev/null; then
     echo "[FAIL] compile: $name"
     fail=1
     continue

@@ -58,7 +58,7 @@ int32 main() {
 EOF
 
   local bin="$WORK_DIR/ifdef_else_bin"
-  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" >/dev/null 2>&1; then
+  if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$src" "$bin" >/dev/null 2>&1; then
     echo "[FAIL] ifdef_else: compile/link failed"
     fail=1
     return

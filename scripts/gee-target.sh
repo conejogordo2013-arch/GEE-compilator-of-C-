@@ -16,7 +16,12 @@ case "$cmd" in
     if [[ -f "$CFG_FILE" ]]; then
       cat "$CFG_FILE"
     else
-      echo "x86-64"
+      HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
+      if [[ "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ]]; then
+        echo "arm-64"
+      else
+        echo "x86-64"
+      fi
     fi
     ;;
   list)

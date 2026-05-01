@@ -13,7 +13,7 @@ expected=117
 lines=$(wc -l < "$src")
 echo "[INFO] mega_showcase lines=$lines"
 
-GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" >/dev/null
+GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$src" "$bin" >/dev/null
 set +e
 "$bin" >/dev/null 2>&1
 actual=$?

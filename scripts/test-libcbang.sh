@@ -13,7 +13,7 @@ src="$ROOT_DIR/tests/libcbang/test_algorithms.cb"
 bin="$OUT_DIR/test_algorithms"
 
 fail=0
-if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$src" "$bin" "$algorithms_asm" >/dev/null; then
+if ! GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$src" "$bin" "$algorithms_asm" >/dev/null; then
   echo "[FAIL] compile: test_algorithms"
   fail=1
 elif "$bin" >/dev/null 2>&1; then

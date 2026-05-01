@@ -15,7 +15,7 @@ for m in "${mods[@]}"; do
 done
 
 bin="$WORK_DIR/test_ogl_canvas"
-GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$ROOT_DIR/tests/ogl/test_canvas.cb" "$bin" "${mod_asms[@]}" >/dev/null
+GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$ROOT_DIR/tests/ogl/test_canvas.cb" "$bin" "${mod_asms[@]}" >/dev/null
 
 set +e
 "$bin" >/dev/null 2>&1

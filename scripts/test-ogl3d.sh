@@ -21,7 +21,7 @@ for m in "${mods[@]}"; do
 done
 
 bin="$WORK_DIR/test_ogl3d"
-GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" x86-64 "$ROOT_DIR/tests/ogl3d/test_physics3d.cb" "$bin" "${asms[@]}" >/dev/null
+GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$ROOT_DIR/tests/ogl3d/test_physics3d.cb" "$bin" "${asms[@]}" >/dev/null
 
 set +e
 "$bin" >/dev/null 2>&1

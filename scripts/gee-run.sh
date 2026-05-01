@@ -9,7 +9,16 @@ fi
 INPUT="$1"
 shift
 
-TARGET="${GEE_TARGET:-x86-64}"
+if [ -n "${GEE_TARGET:-}" ]; then
+  TARGET="$GEE_TARGET"
+else
+  HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$HOST_ARCH" = "aarch64" ] || [ "$HOST_ARCH" = "arm64" ]; then
+    TARGET="arm-64"
+  else
+    TARGET="x86-64"
+  fi
+fi
 MODE="no-cc"
 OUT_BIN=""
 

@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GEE_BIN="${GEE_BIN:-./gee}"
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "$WORK_DIR"' EXIT
+
 AS_BIN="${AS_BIN:-as}"
 LD_BIN="${LD_BIN:-ld}"
+GEE_BIN="${GEE_BIN:-./gee}"
 
 bash scripts/build-libcbang-shared.sh x86-64 ./libcbang_shared.so
 
-"$GEE_BIN" examples/libcbang_shared_demo.cb /tmp/libcbang_shared_demo.s >/dev/null
-"$AS_BIN" --64 -o /tmp/libcbang_shared_demo.o /tmp/libcbang_shared_demo.s
-"$AS_BIN" --64 -o /tmp/libcbang_shared_system.o stdlib/system.s
+"$GEE_BIN" examples/libcbang_shared_demo.cb "$WORK_DIR/demo.s" >/dev/null
+"$AS_BIN" --64 -o "$WORK_DIR/demo.o" "$WORK_DIR/demo.s"
+"$AS_BIN" --64 -o "$WORK_DIR/system.o" stdlib/system.s
 
-"$LD_BIN" -dynamic-linker /lib64/ld-linux-x86-64.so.2 -e main -o /tmp/libcbang_shared_demo_bin /tmp/libcbang_shared_demo.o /tmp/libcbang_shared_system.o -L. -lcbang_shared
+"$LD_BIN" -e main -o "$WORK_DIR/demo_bin" "$WORK_DIR/demo.o" "$WORK_DIR/system.o" -L. -lcbang_shared
+LD_LIBRARY_PATH=. "$WORK_DIR/demo_bin"
 
-LD_LIBRARY_PATH=. /tmp/libcbang_shared_demo_bin
-rc=$?
-echo "EXIT:$rc"
-exit "$rc"
+echo "libcbang shared x86 OK"
