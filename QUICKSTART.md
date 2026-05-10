@@ -57,3 +57,5 @@ Esto construye `gee_stage1_nocc` con `gee + as + ld`.
 ## Setup completo
 
 Para guía total x86-64 + ARM64 (compilador, librerías, ejemplos, troubleshooting), ver `COMPLETE_SETUP_X86_64_ARM64.md`.
+
+Para Windows 11 (MSYS2/MinGW64, WSL2, gráficos 2D/GDI), ver `WINDOWS11_INSTALL_GUIDE.md`.
