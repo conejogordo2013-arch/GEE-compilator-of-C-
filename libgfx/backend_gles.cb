@@ -1,0 +1,67 @@
+// libgfx/backend_gles.cb - backend OpenGL ES bootstrap (EGL + GLES2)
+// Nota: implementación inicial enfocada en boot/render de color sólido.
+
+struct GfxGlesCtx {
+    int64 display;
+    int64 surface;
+    int64 context;
+    int32 width;
+    int32 height;
+    int32 alive;
+};
+
+// API de plataforma (por implementar por target).
+extern int64 gfx_platform_x11_egl_get_display();
+extern int64 gfx_platform_x11_egl_create_window_surface(int64, int32, int32, string);
+extern int64 gfx_platform_x11_egl_create_context(int64);
+extern int32 gfx_platform_x11_egl_make_current(int64, int64, int64);
+extern int32 gfx_platform_x11_egl_swap_buffers(int64, int64);
+extern void gfx_platform_x11_egl_destroy(int64, int64, int64);
+
+// API GLES mínima (cargada/expulsada por runtime del target).
+extern void glViewport(int32, int32, int32, int32);
+extern void glClearColor(float32, float32, float32, float32);
+extern void glClear(int32);
+
+int32 gfx_gles_init(struct GfxGlesCtx* g, int32 width, int32 height, string title) {
+    g->display = gfx_platform_x11_egl_get_display();
+    if (g->display == 0) return 0;
+
+    g->surface = gfx_platform_x11_egl_create_window_surface(g->display, width, height, title);
+    if (g->surface == 0) return 0;
+
+    g->context = gfx_platform_x11_egl_create_context(g->display);
+    if (g->context == 0) return 0;
+
+    if (gfx_platform_x11_egl_make_current(g->display, g->surface, g->context) == 0) return 0;
+
+    g->width = width;
+    g->height = height;
+    g->alive = 1;
+
+    glViewport(0, 0, width, height);
+    return 1;
+}
+
+void gfx_gles_begin_frame(struct GfxGlesCtx* g, float32 r, float32 gg, float32 b, float32 a) {
+    if (g->alive == 0) return;
+    glViewport(0, 0, g->width, g->height);
+    glClearColor(r, gg, b, a);
+    glClear(0x00004000); // GL_COLOR_BUFFER_BIT
+}
+
+int32 gfx_gles_end_frame(struct GfxGlesCtx* g) {
+    if (g->alive == 0) return 0;
+    return gfx_platform_x11_egl_swap_buffers(g->display, g->surface);
+}
+
+void gfx_gles_shutdown(struct GfxGlesCtx* g) {
+    if (g->alive == 0) return;
+    gfx_platform_x11_egl_destroy(g->display, g->surface, g->context);
+    g->display = 0;
+    g->surface = 0;
+    g->context = 0;
+    g->width = 0;
+    g->height = 0;
+    g->alive = 0;
+}

@@ -1,0 +1,62 @@
+// libgfx/backend_interface.cb - contrato interno de backend
+
+struct GfxConfig {
+    int32 backend;
+    int32 width;
+    int32 height;
+    int32 vsync;
+    int32 validation;
+};
+
+struct GfxCanvas {
+    int32 width;
+    int32 height;
+    int32 state;
+    int32 alive;
+};
+
+// Backend SOFTWARE inicial (sin ventana, deterministic checksum)
+int32 gfx_backend_init_software(struct GfxCanvas* c, struct GfxConfig* cfg) {
+    if (cfg->width <= 0 || cfg->height <= 0) return 0;
+    c->width = cfg->width;
+    c->height = cfg->height;
+    c->state = (cfg->width * 131 + cfg->height * 17) % 1000003;
+    c->alive = 1;
+    return 1;
+}
+
+void gfx_backend_shutdown_software(struct GfxCanvas* c) {
+    c->width = 0;
+    c->height = 0;
+    c->state = 0;
+    c->alive = 0;
+}
+
+void gfx_backend_clear_software(struct GfxCanvas* c, int32 color) {
+    if (c->alive == 0) return;
+    c->state = (color + c->width * 17 + c->height * 19) % 1000003;
+}
+
+void gfx_backend_sprite_software(struct GfxCanvas* c, int32 x, int32 y, int32 w, int32 h, int32 color) {
+    if (c->alive == 0) return;
+
+    int32 yy = 0;
+    while (yy < h) {
+        int32 xx = 0;
+        while (xx < w) {
+            int32 px = x + xx;
+            int32 py = y + yy;
+            if (px >= 0 && py >= 0 && px < c->width && py < c->height) {
+                int32 mix = (px * 1973 + py * 9277 + color * 31) % 1000003;
+                c->state = (c->state + mix + ((px + 1) * (py + 3))) % 1000003;
+            }
+            xx = xx + 1;
+        }
+        yy = yy + 1;
+    }
+}
+
+int32 gfx_backend_present_software(struct GfxCanvas* c) {
+    if (c->alive == 0) return 0;
+    return (c->state + c->width * 7 + c->height * 11) % 1000003;
+}

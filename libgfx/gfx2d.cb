@@ -1,0 +1,75 @@
+// libgfx/gfx2d.cb - capa 2D inicial multiplataforma sobre drawg
+
+struct Gfx2D {
+    struct DrawgCanvas canvas;
+    int32 width;
+    int32 height;
+    int32 alive;
+};
+
+struct DrawgCanvas {
+    int32 width;
+    int32 height;
+    int64 pixels;
+    int32 alive;
+};
+
+extern int32 drawg_open(struct DrawgCanvas*, int32, int32, string);
+extern void drawg_close(struct DrawgCanvas*);
+extern void drawg_clear(struct DrawgCanvas*, int64);
+extern void drawg_line(struct DrawgCanvas*, int32, int32, int32, int32, int64);
+extern void drawg_present(struct DrawgCanvas*);
+extern int32 drawg_should_close();
+extern void drawg_sleep_ms(int32);
+extern int64 drawg_rgb(int32, int32, int32);
+
+int32 gfx2d_open(struct Gfx2D* g, int32 width, int32 height, string title) {
+    g->alive = 0;
+    g->width = width;
+    g->height = height;
+    if (drawg_open(&g->canvas, width, height, title) == 0) return 0;
+    g->alive = 1;
+    return 1;
+}
+
+void gfx2d_close(struct Gfx2D* g) {
+    if (g->alive == 0) return;
+    drawg_close(&g->canvas);
+    g->alive = 0;
+}
+
+void gfx2d_clear(struct Gfx2D* g, int32 r, int32 gg, int32 b) {
+    drawg_clear(&g->canvas, drawg_rgb(r, gg, b));
+}
+
+void gfx2d_grid(struct Gfx2D* g, int32 step, int64 color) {
+    int32 x = 0;
+    while (x < g->width) {
+        drawg_line(&g->canvas, x, 0, x, g->height - 1, color);
+        x = x + step;
+    }
+
+    int32 y = 0;
+    while (y < g->height) {
+        drawg_line(&g->canvas, 0, y, g->width - 1, y, color);
+        y = y + step;
+    }
+}
+
+int32 gfx2d_frame(struct Gfx2D* g, int32 frame) {
+    int32 blue = (frame % 120) + 80;
+    gfx2d_clear(g, 10, 20, blue);
+
+    int64 cgrid = drawg_rgb(35, 45, 60);
+    int64 cdiag = drawg_rgb(220, 220, 40);
+
+    gfx2d_grid(g, 32, cgrid);
+    drawg_line(&g->canvas, 0, 0, g->width - 1, g->height - 1, cdiag);
+    drawg_line(&g->canvas, g->width - 1, 0, 0, g->height - 1, cdiag);
+
+    drawg_present(&g->canvas);
+    drawg_sleep_ms(16);
+
+    if (drawg_should_close() == 1) return 0;
+    return 1;
+}
