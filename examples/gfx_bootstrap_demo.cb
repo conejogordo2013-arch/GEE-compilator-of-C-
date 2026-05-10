@@ -1,0 +1,55 @@
+import system;
+
+struct GfxConfig {
+    int32 backend;
+    int32 width;
+    int32 height;
+    int32 vsync;
+    int32 validation;
+};
+
+struct GfxFrameStats {
+    int32 frame_id;
+    int32 last_checksum;
+    int32 backend;
+};
+
+struct GfxCanvas {
+    int32 width;
+    int32 height;
+    int32 state;
+    int32 alive;
+};
+
+extern int32 gfx_init(struct GfxCanvas*, struct GfxConfig*, struct GfxFrameStats*);
+extern void gfx_begin_frame(struct GfxCanvas*, int32);
+extern void gfx_draw_sprite(struct GfxCanvas*, int32, int32, int32, int32, int32);
+extern int32 gfx_end_frame(struct GfxCanvas*, struct GfxFrameStats*);
+extern void gfx_shutdown(struct GfxCanvas*);
+
+int32 main() {
+    struct GfxCanvas ctx;
+    struct GfxConfig cfg;
+    struct GfxFrameStats stats;
+
+    cfg.backend = 0;
+    cfg.width = 64;
+    cfg.height = 48;
+    cfg.vsync = 1;
+    cfg.validation = 0;
+
+    if (gfx_init(&ctx, &cfg, &stats) == 0) {
+        system_exit(1);
+        return 0;
+    }
+
+    gfx_begin_frame(&ctx, 0x101020);
+    gfx_draw_sprite(&ctx, 4, 4, 20, 12, 0xff0000);
+    gfx_draw_sprite(&ctx, 18, 16, 24, 10, 0x00ff00);
+
+    int32 sig = gfx_end_frame(&ctx, &stats);
+    gfx_shutdown(&ctx);
+
+    system_exit(sig % 127);
+    return 0;
+}
