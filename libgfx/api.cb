@@ -1,0 +1,57 @@
+// libgfx/api.cb - API pública inicial de libgfx
+
+struct GfxConfig {
+    int32 backend;
+    int32 width;
+    int32 height;
+    int32 vsync;
+    int32 validation;
+};
+
+struct GfxFrameStats {
+    int32 frame_id;
+    int32 last_checksum;
+    int32 backend;
+};
+
+struct GfxCanvas {
+    int32 width;
+    int32 height;
+    int32 state;
+    int32 alive;
+};
+
+extern int32 gfx_backend_init_software(struct GfxCanvas*, struct GfxConfig*);
+extern void gfx_backend_shutdown_software(struct GfxCanvas*);
+extern void gfx_backend_clear_software(struct GfxCanvas*, int32);
+extern void gfx_backend_sprite_software(struct GfxCanvas*, int32, int32, int32, int32, int32);
+extern int32 gfx_backend_present_software(struct GfxCanvas*);
+
+int32 gfx_init(struct GfxCanvas* ctx, struct GfxConfig* cfg, struct GfxFrameStats* stats) {
+    if (cfg->backend != 0) return 0;
+    if (gfx_backend_init_software(ctx, cfg) == 0) return 0;
+
+    stats->frame_id = 0;
+    stats->last_checksum = 0;
+    stats->backend = cfg->backend;
+    return 1;
+}
+
+void gfx_begin_frame(struct GfxCanvas* ctx, int32 color) {
+    gfx_backend_clear_software(ctx, color);
+}
+
+void gfx_draw_sprite(struct GfxCanvas* ctx, int32 x, int32 y, int32 w, int32 h, int32 color) {
+    gfx_backend_sprite_software(ctx, x, y, w, h, color);
+}
+
+int32 gfx_end_frame(struct GfxCanvas* ctx, struct GfxFrameStats* stats) {
+    int32 sig = gfx_backend_present_software(ctx);
+    stats->frame_id = stats->frame_id + 1;
+    stats->last_checksum = sig;
+    return sig;
+}
+
+void gfx_shutdown(struct GfxCanvas* ctx) {
+    gfx_backend_shutdown_software(ctx);
+}
