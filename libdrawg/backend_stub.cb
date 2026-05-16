@@ -2,6 +2,17 @@
 
 int32 drawg_stub_frames = 0;
 
+extern int64 alloc(int64);
+
+int64 drawg_heap_alloc(int64 size) {
+    return alloc(size);
+}
+
+void drawg_heap_free(int64 ptr) {
+    return;
+}
+
+
 int32 drawg_backend_init(int32 width, int32 height, string title) {
     drawg_stub_frames = 0;
     return 1;

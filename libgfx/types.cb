@@ -1,0 +1,20 @@
+// libgfx/types.cb - tipos base para backend agnóstico
+
+struct GfxConfig {
+    int32 backend;
+    int32 width;
+    int32 height;
+    int32 vsync;
+    int32 validation;
+};
+
+struct GfxFrameStats {
+    int32 frame_id;
+    int32 last_checksum;
+    int32 backend;
+};
+
+int32 gfx_backend_software() { return 0; }
+int32 gfx_backend_gles() { return 1; }
+int32 gfx_backend_gl() { return 2; }
+int32 gfx_backend_vulkan() { return 3; }

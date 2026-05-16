@@ -1,0 +1,39 @@
+// libgfx/backend_gles_stub.cb - stubs para compilar/linkear el scaffold GLES sin EGL real.
+
+int64 gfx_gles_stub_display = 1;
+int64 gfx_gles_stub_surface = 2;
+int64 gfx_gles_stub_context = 3;
+int32 gfx_gles_stub_frames = 0;
+
+int64 gfx_platform_x11_egl_get_display() {
+    return gfx_gles_stub_display;
+}
+
+int64 gfx_platform_x11_egl_create_window_surface(int64 display, int32 width, int32 height, string title) {
+    return gfx_gles_stub_surface;
+}
+
+int64 gfx_platform_x11_egl_create_context(int64 display) {
+    return gfx_gles_stub_context;
+}
+
+int32 gfx_platform_x11_egl_make_current(int64 display, int64 surface, int64 context) {
+    return 1;
+}
+
+int32 gfx_platform_x11_egl_swap_buffers(int64 display, int64 surface) {
+    gfx_gles_stub_frames = gfx_gles_stub_frames + 1;
+    return 1;
+}
+
+void gfx_platform_x11_egl_destroy(int64 display, int64 surface, int64 context) {
+    return;
+}
+
+void glViewport(int32 x, int32 y, int32 width, int32 height) {
+    return;
+}
+
+void gfx_platform_gles_clear_color(int32 r, int32 gg, int32 b, int32 a) {
+    return;
+}

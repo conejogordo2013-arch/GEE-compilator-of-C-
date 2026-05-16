@@ -7,8 +7,8 @@ struct DrawgCanvas {
     int32 alive;
 };
 
-extern int64 malloc(int64);
-extern void free(int64);
+extern int64 drawg_heap_alloc(int64);
+extern void drawg_heap_free(int64);
 
 // Contrato backend (debe existir en runtime nativo para abrir ventana real).
 extern int32 drawg_backend_init(int32, int32, string);
@@ -40,7 +40,7 @@ int32 drawg_open(struct DrawgCanvas* c, int32 width, int32 height, string title)
     int64 total = width;
     total = total * height;
     total = total * 8;
-    c->pixels = malloc(total);
+    c->pixels = drawg_heap_alloc(total);
     if (c->pixels == 0) {
         drawg_backend_shutdown();
         return 0;
@@ -52,7 +52,7 @@ int32 drawg_open(struct DrawgCanvas* c, int32 width, int32 height, string title)
 
 void drawg_close(struct DrawgCanvas* c) {
     if (c->pixels != 0) {
-        free(c->pixels);
+        drawg_heap_free(c->pixels);
         c->pixels = 0;
     }
     if (c->alive == 1) {

@@ -1,0 +1,40 @@
+import system;
+
+struct GfxGlesCtx {
+    int64 display;
+    int64 surface;
+    int64 context;
+    int32 width;
+    int32 height;
+    int32 alive;
+};
+
+extern int32 gfx_gles_init(struct GfxGlesCtx*, int32, int32, string);
+extern void gfx_gles_begin_frame(struct GfxGlesCtx*, int32, int32, int32, int32);
+extern int32 gfx_gles_end_frame(struct GfxGlesCtx*);
+extern void gfx_gles_shutdown(struct GfxGlesCtx*);
+extern void drawg_sleep_ms(int32);
+
+int32 main() {
+    struct GfxGlesCtx g;
+    if (gfx_gles_init(&g, 640, 480, "GLES bootstrap") == 0) {
+        system_exit(2);
+        return 0;
+    }
+
+    int32 i = 0;
+    while (i < 180) {
+        gfx_gles_begin_frame(&g, 25, 40, 72, 255);
+        if (gfx_gles_end_frame(&g) == 0) {
+            gfx_gles_shutdown(&g);
+            system_exit(3);
+            return 0;
+        }
+        drawg_sleep_ms(16);
+        i = i + 1;
+    }
+
+    gfx_gles_shutdown(&g);
+    system_exit(0);
+    return 0;
+}

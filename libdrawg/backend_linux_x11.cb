@@ -1,0 +1,169 @@
+// Backend Linux/Termux X11 (Xlib) para drawg en C! puro.
+
+int64 drawg_x11_display = 0;
+int64 drawg_x11_window = 0;
+int64 drawg_x11_gc = 0;
+int32 drawg_x11_close = 0;
+int32 drawg_x11_width = 0;
+int32 drawg_x11_height = 0;
+
+struct XEvent {
+    int64 pad0;
+    int64 pad1;
+    int64 pad2;
+    int64 pad3;
+    int64 pad4;
+    int64 pad5;
+    int64 pad6;
+    int64 pad7;
+    int64 pad8;
+    int64 pad9;
+    int64 pad10;
+    int64 pad11;
+    int64 pad12;
+    int64 pad13;
+    int64 pad14;
+    int64 pad15;
+    int64 pad16;
+    int64 pad17;
+    int64 pad18;
+    int64 pad19;
+    int64 pad20;
+    int64 pad21;
+    int64 pad22;
+    int64 pad23;
+};
+
+extern int64 XOpenDisplay(string);
+extern int32 XDefaultScreen(int64);
+extern int64 XRootWindow(int64, int32);
+extern int64 XCreateSimpleWindow(int64, int64, int32, int32, int32, int32, int32, int64, int64);
+extern int32 XStoreName(int64, int64, string);
+extern int32 XSelectInput(int64, int64, int64);
+extern int32 XMapWindow(int64, int64);
+extern int32 XFlush(int64);
+extern int64 XCreateGC(int64, int64, int64, int64);
+extern int32 XFreeGC(int64, int64);
+extern int32 XDestroyWindow(int64, int64);
+extern int32 XCloseDisplay(int64);
+extern int32 XPending(int64);
+extern int32 XNextEvent(int64, struct XEvent*);
+extern int32 XPutImage(int64, int64, int64, int64, int32, int32, int32, int32, int32, int32);
+extern int64 XCreateImage(int64, int64, int32, int32, int32, int64, int32, int32, int32, int32);
+extern int32 XDestroyImage(int64);
+extern int64 XDefaultVisual(int64, int32);
+extern int32 usleep(int32);
+extern int64 malloc(int64);
+extern void free(int64);
+
+int64 drawg_heap_alloc(int64 size) {
+    return malloc(size);
+}
+
+void drawg_heap_free(int64 ptr) {
+    if (ptr == 0) return;
+    free(ptr);
+}
+
+int64 drawg_x11_rgb_to_bgrx(int64 rgb) {
+    int64 r = (rgb >> 16) & 255;
+    int64 g = (rgb >> 8) & 255;
+    int64 b = rgb & 255;
+    return b | (g << 8) | (r << 16);
+}
+
+int32 drawg_backend_init(int32 width, int32 height, string title) {
+    drawg_x11_display = XOpenDisplay(0);
+    if (drawg_x11_display == 0) return 0;
+
+    int32 screen = XDefaultScreen(drawg_x11_display);
+    int64 root = XRootWindow(drawg_x11_display, screen);
+
+    drawg_x11_window = XCreateSimpleWindow(drawg_x11_display, root, 50, 50, width, height, 1, 0, 0);
+    if (drawg_x11_window == 0) return 0;
+
+    XStoreName(drawg_x11_display, drawg_x11_window, title);
+
+    // ExposureMask | KeyPressMask | StructureNotifyMask
+    int64 mask = 0x00008000 | 0x00000001 | 0x00020000;
+    XSelectInput(drawg_x11_display, drawg_x11_window, mask);
+    XMapWindow(drawg_x11_display, drawg_x11_window);
+    XFlush(drawg_x11_display);
+
+    drawg_x11_gc = XCreateGC(drawg_x11_display, drawg_x11_window, 0, 0);
+    if (drawg_x11_gc == 0) return 0;
+
+    drawg_x11_width = width;
+    drawg_x11_height = height;
+    drawg_x11_close = 0;
+    return 1;
+}
+
+int32 drawg_backend_should_close() {
+    if (drawg_x11_display == 0) return 1;
+
+    struct XEvent ev;
+    while (XPending(drawg_x11_display) > 0) {
+        XNextEvent(drawg_x11_display, &ev);
+        int32 type = ev.pad0;
+        // 17 = DestroyNotify
+        if (type == 17) drawg_x11_close = 1;
+    }
+
+    return drawg_x11_close;
+}
+
+void drawg_backend_present(int64 pixels, int32 width, int32 height) {
+    if (drawg_x11_display == 0) return;
+
+    int64 count = width;
+    count = count * height;
+    int64 bytes = count * 4;
+
+    int64 raw = malloc(bytes);
+    if (raw == 0) return;
+
+    int64* src = pixels;
+    int64* dst = raw;
+    int64 i = 0;
+    while (i < count) {
+        *dst = drawg_x11_rgb_to_bgrx(*src);
+        src += 1;
+        dst += 1;
+        i += 1;
+    }
+
+    int32 screen = XDefaultScreen(drawg_x11_display);
+    int64 visual = XDefaultVisual(drawg_x11_display, screen);
+    int32 ZPixmap = 2;
+
+    int64 img = XCreateImage(drawg_x11_display, visual, 24, ZPixmap, 0, raw, width, height, 32, 0);
+    if (img != 0) {
+        XPutImage(drawg_x11_display, drawg_x11_window, drawg_x11_gc, img, 0, 0, 0, 0, width, height);
+        XFlush(drawg_x11_display);
+        XDestroyImage(img);
+    } else {
+        free(raw);
+    }
+}
+
+void drawg_backend_sleep(int32 ms) {
+    if (ms <= 0) return;
+    usleep(ms * 1000);
+}
+
+void drawg_backend_shutdown() {
+    if (drawg_x11_display != 0 && drawg_x11_gc != 0) {
+        XFreeGC(drawg_x11_display, drawg_x11_gc);
+        drawg_x11_gc = 0;
+    }
+    if (drawg_x11_display != 0 && drawg_x11_window != 0) {
+        XDestroyWindow(drawg_x11_display, drawg_x11_window);
+        drawg_x11_window = 0;
+    }
+    if (drawg_x11_display != 0) {
+        XCloseDisplay(drawg_x11_display);
+        drawg_x11_display = 0;
+    }
+    drawg_x11_close = 1;
+}
