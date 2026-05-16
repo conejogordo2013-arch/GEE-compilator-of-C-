@@ -10,7 +10,7 @@ struct GfxGlesCtx {
 };
 
 extern int32 gfx_gles_init(struct GfxGlesCtx*, int32, int32, string);
-extern void gfx_gles_begin_frame(struct GfxGlesCtx*, float32, float32, float32, float32);
+extern void gfx_gles_begin_frame(struct GfxGlesCtx*, int32, int32, int32, int32);
 extern int32 gfx_gles_end_frame(struct GfxGlesCtx*);
 extern void gfx_gles_shutdown(struct GfxGlesCtx*);
 extern void drawg_sleep_ms(int32);
@@ -24,7 +24,7 @@ int32 main() {
 
     int32 i = 0;
     while (i < 180) {
-        gfx_gles_begin_frame(&g, 0.10, 0.16, 0.28, 1.0);
+        gfx_gles_begin_frame(&g, 25, 40, 72, 255);
         if (gfx_gles_end_frame(&g) == 0) {
             gfx_gles_shutdown(&g);
             system_exit(3);

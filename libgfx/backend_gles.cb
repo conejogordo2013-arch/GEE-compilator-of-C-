@@ -20,8 +20,7 @@ extern void gfx_platform_x11_egl_destroy(int64, int64, int64);
 
 // API GLES mínima (cargada/expulsada por runtime del target).
 extern void glViewport(int32, int32, int32, int32);
-extern void glClearColor(float32, float32, float32, float32);
-extern void glClear(int32);
+extern void gfx_platform_gles_clear_color(int32, int32, int32, int32);
 
 int32 gfx_gles_init(struct GfxGlesCtx* g, int32 width, int32 height, string title) {
     g->display = gfx_platform_x11_egl_get_display();
@@ -43,11 +42,10 @@ int32 gfx_gles_init(struct GfxGlesCtx* g, int32 width, int32 height, string titl
     return 1;
 }
 
-void gfx_gles_begin_frame(struct GfxGlesCtx* g, float32 r, float32 gg, float32 b, float32 a) {
+void gfx_gles_begin_frame(struct GfxGlesCtx* g, int32 r, int32 gg, int32 b, int32 a) {
     if (g->alive == 0) return;
     glViewport(0, 0, g->width, g->height);
-    glClearColor(r, gg, b, a);
-    glClear(0x00004000); // GL_COLOR_BUFFER_BIT
+    gfx_platform_gles_clear_color(r, gg, b, a);
 }
 
 int32 gfx_gles_end_frame(struct GfxGlesCtx* g) {

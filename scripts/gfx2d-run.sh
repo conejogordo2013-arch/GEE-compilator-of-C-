@@ -18,10 +18,12 @@ fi
 
 backend_src=""
 link_libs=()
+bridge_srcs=()
 
 if [[ "$OS" == mingw* || "$OS" == msys* || "$OS" == cygwin* ]]; then
   backend_src="$ROOT_DIR/libdrawg/backend_windows_gdi.cb"
   link_libs=(-lgdi32 -luser32)
+  bridge_srcs=("$ROOT_DIR/libdrawg/backend_windows_gdi_bridge.c")
   platform_name="windows-gdi"
 elif [[ "$OS" == "linux" ]]; then
   backend_src="$ROOT_DIR/libdrawg/backend_linux_x11.cb"
@@ -51,7 +53,11 @@ for src in "${mods[@]}" "$ROOT_DIR/examples/gfx2d_window_demo.cb"; do
   asms+=("$out")
 done
 
-if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+if [[ "$platform_name" == "windows-gdi" ]]; then
+  std_system="$ROOT_DIR/stdlib/system_windows_x86_64.s"
+  std_memory="$ROOT_DIR/stdlib/memory.s"
+  std_net="$ROOT_DIR/stdlib/net.s"
+elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
   std_system="$ROOT_DIR/stdlib/system_arm64.s"
   std_memory="$ROOT_DIR/stdlib/memory_arm64.s"
   std_net="$ROOT_DIR/stdlib/net_arm64.s"
@@ -63,7 +69,7 @@ fi
 
 bin="$WORK_DIR/gfx2d_demo"
 
-gcc "${asms[@]}" "$std_system" "$std_memory" "$std_net" "${link_libs[@]}" -o "$bin"
+gcc "${asms[@]}" "${bridge_srcs[@]}" "$std_system" "$std_memory" "$std_net" "${link_libs[@]}" -o "$bin"
 
 echo "[INFO] Ejecutando demo 2D..."
 "$bin"

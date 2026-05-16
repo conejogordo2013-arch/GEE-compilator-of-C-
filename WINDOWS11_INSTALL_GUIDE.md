@@ -216,8 +216,10 @@ bash scripts/gfx2d-run.sh
 El script detecta Windows/MSYS2 y selecciona:
 
 ```text
-backend_windows_gdi.cb + gdi32 + user32
+backend_windows_gdi.cb + backend_windows_gdi_bridge.c + gdi32 + user32
 ```
+
+`backend_windows_gdi_bridge.c` es un puente ABI mínimo: el compilador C! actual emite llamadas x86-64 estilo SysV, mientras Win32/GDI usa la ABI Windows x64. El puente evita crashes al llamar `CreateWindowExA`, `StretchDIBits`, `Sleep` y asignación de memoria desde código generado por C!. El runner también usa `stdlib/system_windows_x86_64.s` para que `system_exit` termine con `ExitProcess` en vez de intentar el syscall Linux.
 
 Si todo está bien, debe abrirse una ventana con una escena 2D básica (grilla y diagonales). Si compila pero no ves ventana, revisa:
 

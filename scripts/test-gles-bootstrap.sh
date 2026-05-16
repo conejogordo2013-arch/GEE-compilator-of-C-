@@ -8,6 +8,7 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 
 mods=(
   "$ROOT_DIR/libgfx/backend_gles.cb"
+  "$ROOT_DIR/libgfx/backend_gles_stub.cb"
   "$ROOT_DIR/libdrawg/drawg.cb"
   "$ROOT_DIR/libdrawg/backend_stub.cb"
 )
@@ -23,4 +24,4 @@ bin="$WORK_DIR/test_gles_bootstrap"
 GEE_BIN="$GEE_BIN" bash "$ROOT_DIR/scripts/gee-asm-link.sh" host "$ROOT_DIR/examples/gfx_gles_clear_demo.cb" "$bin" "${mod_asms[@]}" >/dev/null
 
 echo "[INFO] Compilación/link GLES bootstrap OK."
-echo "[WARN] Ejecución visual no se valida aquí porque faltan symbols/platform EGL reales en backend_stub."
+echo "[WARN] Ejecución visual no se valida aquí; este test usa backend_gles_stub.cb sin EGL real."

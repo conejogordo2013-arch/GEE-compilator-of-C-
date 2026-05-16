@@ -14,6 +14,18 @@ extern int64 write(int32, int64, int64);
 extern int64 lseek(int32, int64, int32);
 extern int32 usleep(int32);
 
+extern int64 malloc(int64);
+extern void free(int64);
+
+int64 drawg_heap_alloc(int64 size) {
+    return malloc(size);
+}
+
+void drawg_heap_free(int64 ptr) {
+    if (ptr == 0) return;
+    free(ptr);
+}
+
 int64 drawg_rgb_to_bgra(int64 rgb) {
     int64 r = (rgb >> 16) & 255;
     int64 g = (rgb >> 8) & 255;

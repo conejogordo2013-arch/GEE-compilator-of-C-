@@ -46,11 +46,11 @@ gcc /tmp/drawg_cube.s /tmp/drawg.s /tmp/drawg_fb.s -o drawg_cube_fb
 
 ## Backend Windows GDI (puro C!)
 
-También se incluye `libdrawg/backend_windows_gdi.cb` para compilar `.exe` en Windows sin escribir C.
+También se incluye `libdrawg/backend_windows_gdi.cb` para compilar `.exe` en Windows. En x86_64 Windows se debe enlazar también `backend_windows_gdi_bridge.c`, porque Win32 usa la ABI Windows x64 y el compilador C! actual emite llamadas SysV.
 
 ```bash
 ./gee libdrawg/backend_windows_gdi.cb /tmp/drawg_win.s
-x86_64-w64-mingw32-gcc /tmp/drawg_cube.s /tmp/drawg.s /tmp/drawg_win.s -lgdi32 -luser32 -o drawg_cube.exe
+x86_64-w64-mingw32-gcc /tmp/drawg_cube.s /tmp/drawg.s /tmp/drawg_win.s libdrawg/backend_windows_gdi_bridge.c -lgdi32 -luser32 -o drawg_cube.exe
 ```
 
 

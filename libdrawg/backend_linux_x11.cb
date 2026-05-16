@@ -49,12 +49,21 @@ extern int32 XCloseDisplay(int64);
 extern int32 XPending(int64);
 extern int32 XNextEvent(int64, struct XEvent*);
 extern int32 XPutImage(int64, int64, int64, int64, int32, int32, int32, int32, int32, int32);
-extern int64 XCreateImage(int64, int64, int32, int32, int32, int64, int64, int32, int32, int32, int32);
+extern int64 XCreateImage(int64, int64, int32, int32, int32, int64, int32, int32, int32, int32);
 extern int32 XDestroyImage(int64);
 extern int64 XDefaultVisual(int64, int32);
 extern int32 usleep(int32);
 extern int64 malloc(int64);
 extern void free(int64);
+
+int64 drawg_heap_alloc(int64 size) {
+    return malloc(size);
+}
+
+void drawg_heap_free(int64 ptr) {
+    if (ptr == 0) return;
+    free(ptr);
+}
 
 int64 drawg_x11_rgb_to_bgrx(int64 rgb) {
     int64 r = (rgb >> 16) & 255;

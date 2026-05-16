@@ -18,7 +18,8 @@ Conectar `backend_gles.cb` al mismo contrato interno para empezar la Fase 1.
 
 - `backend_gles.cb` agrega ciclo mínimo: init -> clear -> swap -> shutdown.
 - `examples/gfx_gles_clear_demo.cb` muestra color sólido para validar salida visual en ventana.
-- `scripts/test-gles-bootstrap.sh` valida compilación/link del flujo inicial.
+- `backend_gles_stub.cb` permite compilar/linkear el scaffold GLES sin EGL real.
+- `scripts/test-gles-bootstrap.sh` valida compilación/link del flujo inicial con stubs.
 
 
 ## 2D multiplataforma (paso actual antes de GLES)
